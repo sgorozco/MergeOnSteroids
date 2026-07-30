@@ -1,0 +1,201 @@
+{
+  "Name": "Customer statement letters",
+  "OutputFolder": "output",
+  "Blocks": [
+    {
+      "$type": "csvSource",
+      "FilePath": "customers.csv",
+      "DisplayName": "open CSV data source",
+      "Name": "customers",
+      "Category": 0,
+      "Id": "11ac66207e8546878fb20044c3fb52f8"
+    },
+    {
+      "$type": "csvSource",
+      "FilePath": "orders.csv",
+      "DisplayName": "open CSV data source",
+      "Name": "orders",
+      "Category": 0,
+      "Id": "2a27e18969cc41d28b5a0240c16d06f9"
+    },
+    {
+      "$type": "forEach",
+      "Alias": "c",
+      "SourceName": "customers",
+      "Children": [
+        {
+          "$type": "filterSource",
+          "SourceName": "orders",
+          "Condition": "CustomerId = c.Id",
+          "DisplayName": "filter data source",
+          "Name": "custOrders",
+          "Category": 0,
+          "Id": "cbfd10bfda3b4c87802185896c21a050"
+        },
+        {
+          "$type": "newDocument",
+          "FileNameTemplate": "Statement_{c.Company}",
+          "TemplatePath": "",
+          "Children": [
+            {
+              "$type": "paragraph",
+              "TextTemplate": "ACME Distribution Inc.",
+              "Style": "Title",
+              "Bold": false,
+              "Italic": false,
+              "DisplayName": "add paragraph",
+              "Category": 3,
+              "Id": "1d22b1c9dd6c43ea8ca6781cc18dbf76"
+            },
+            {
+              "$type": "paragraph",
+              "TextTemplate": "Account statement \u2014 {c.Company}",
+              "Style": "Heading 1",
+              "Bold": false,
+              "Italic": false,
+              "DisplayName": "add paragraph",
+              "Category": 3,
+              "Id": "27c5a17cf99f451daf4ca11618ce8c0a"
+            },
+            {
+              "$type": "paragraph",
+              "TextTemplate": "Generated on {FORMAT(TODAY(), \u0022D\u0022)}",
+              "Style": "Normal",
+              "Bold": false,
+              "Italic": false,
+              "DisplayName": "add paragraph",
+              "Category": 3,
+              "Id": "9077a11f587f4580b1bd0bf96e4f36b8"
+            },
+            {
+              "$type": "paragraph",
+              "TextTemplate": "",
+              "Style": "Normal",
+              "Bold": false,
+              "Italic": false,
+              "DisplayName": "add paragraph",
+              "Category": 3,
+              "Id": "d9181f9298d64927bd568d5fb7d000e6"
+            },
+            {
+              "$type": "paragraph",
+              "TextTemplate": "Dear {c.Contact},",
+              "Style": "Normal",
+              "Bold": false,
+              "Italic": false,
+              "DisplayName": "add paragraph",
+              "Category": 3,
+              "Id": "6b01b875dec743b2bae5d66e3c0564ce"
+            },
+            {
+              "$type": "if",
+              "Condition": "COUNT(custOrders) \u003E 0",
+              "Children": [
+                {
+                  "$type": "paragraph",
+                  "TextTemplate": "Here is a summary of your {COUNT(custOrders)} order(s) this period:",
+                  "Style": "Normal",
+                  "Bold": false,
+                  "Italic": false,
+                  "DisplayName": "add paragraph",
+                  "Category": 3,
+                  "Id": "7c9a4594586342b5a728c6bfdcfe1096"
+                },
+                {
+                  "$type": "table",
+                  "SourceName": "custOrders",
+                  "ColumnsSpec": "Date: FORMAT(Date, \u0022d\u0022) | Product: Product | Qty: Qty | Unit price: FORMAT(UnitPrice, \u0022C\u0022) | Total: FORMAT(Qty * UnitPrice, \u0022C\u0022)",
+                  "HeaderRow": true,
+                  "DisplayName": "add table",
+                  "Category": 3,
+                  "Id": "d648173016ae43fbbe16bed19bcbc4ce"
+                },
+                {
+                  "$type": "paragraph",
+                  "TextTemplate": "Grand total: {FORMAT(SUM(custOrders, Qty * UnitPrice), \u0022C\u0022)}",
+                  "Style": "Normal",
+                  "Bold": true,
+                  "Italic": false,
+                  "DisplayName": "add paragraph",
+                  "Category": 3,
+                  "Id": "ee94fc355afd48c9849b0ad581e8b04c"
+                }
+              ],
+              "Else": [
+                {
+                  "$type": "paragraph",
+                  "TextTemplate": "You have no orders this period \u2014 we would love to hear from you!",
+                  "Style": "Normal",
+                  "Bold": false,
+                  "Italic": true,
+                  "DisplayName": "add paragraph",
+                  "Category": 3,
+                  "Id": "17f58fb552aa4b6b819dc45a0c80e6d3"
+                }
+              ],
+              "DisplayName": "if",
+              "Category": 1,
+              "Id": "bdcd126a0c6a4a97a843da000c4a7bd5"
+            },
+            {
+              "$type": "if",
+              "Condition": "SUM(custOrders, Qty * UnitPrice) \u003E 10000",
+              "Children": [
+                {
+                  "$type": "paragraph",
+                  "TextTemplate": "As one of our preferred customers, you qualify for a dedicated account manager. Expect a call from us soon.",
+                  "Style": "Quote",
+                  "Bold": false,
+                  "Italic": false,
+                  "DisplayName": "add paragraph",
+                  "Category": 3,
+                  "Id": "33ce280946714035ae3b0599d1edcd29"
+                }
+              ],
+              "Else": [],
+              "DisplayName": "if",
+              "Category": 1,
+              "Id": "8f413df13c6f4429aeb3e7b7c7f256d5"
+            },
+            {
+              "$type": "paragraph",
+              "TextTemplate": "",
+              "Style": "Normal",
+              "Bold": false,
+              "Italic": false,
+              "DisplayName": "add paragraph",
+              "Category": 3,
+              "Id": "8874282318024efda6d9c0ebf72e9df8"
+            },
+            {
+              "$type": "paragraph",
+              "TextTemplate": "Kind regards,",
+              "Style": "Normal",
+              "Bold": false,
+              "Italic": false,
+              "DisplayName": "add paragraph",
+              "Category": 3,
+              "Id": "2b9a9a3a7062492d9267f7576cc8bcad"
+            },
+            {
+              "$type": "paragraph",
+              "TextTemplate": "The ACME team \u2014 {c.City} office",
+              "Style": "Normal",
+              "Bold": false,
+              "Italic": true,
+              "DisplayName": "add paragraph",
+              "Category": 3,
+              "Id": "aabc1eab14544551812515f0525f45b1"
+            }
+          ],
+          "DisplayName": "new document",
+          "Category": 3,
+          "Id": "538a25ff61ab4daab9e1c068e7241965"
+        }
+      ],
+      "DisplayName": "for each record",
+      "Category": 1,
+      "Id": "add72dbd363a486f8105296aa5bc0616"
+    }
+  ]
+}
