@@ -52,7 +52,7 @@ Programs are JSON files (`*.mos.json`) — friendly to source control.
 | Variables (orange) | set variable | Store a computed value under a name. |
 | Document (blue) | new document | Starts a Word document, saved when the block finishes. Place inside a loop for one document per record. Supports an optional `.dotx` template. |
 | | add paragraph | Styled paragraph (Normal, Heading 1–3, Title, Subtitle, Quote, List Bullet + bold/italic). Text supports `{expressions}`. The block shows a live preview styled the way Word will render it. |
-| | Word paragraphs (rich) | **Real Word content embedded in the block.** Click *Edit in Word* — the fragment opens in Microsoft Word where you write and format freely (styles, colors, bullets, anything). On save the block stores the formatted content (Flat OPC XML) plus a preview image rendered by Word itself. At run time the fragment is inserted with full fidelity and `{expressions}` in its text are substituted via Word find/replace, inheriting the surrounding formatting. Try `mos richsample` for a generated demo. |
+| | Word paragraphs (rich) | **Real Word content embedded in the block.** Click *Edit in Word* — the fragment's own `.docx` opens in Microsoft Word, where you write and format freely (styles, colors, bullets, anything). At run time the fragment is inserted with full fidelity and `{expressions}` in its text are substituted via Word find/replace, inheriting the surrounding formatting. Try `mos richsample` for a generated demo. |
 | | add table | Table filled from a data source with computed columns: `Header: expression \| Header: expression` (empty = all columns). |
 | | page break | What it says. |
 
@@ -77,10 +77,25 @@ file name:  Statement_{c.Company}
 
 `FORMAT` uses .NET format strings with the current culture (`"C"` = currency, `"D"` = long date).
 
+## Files a program owns
+
+```
+letters.mos.json              the program (plain JSON, safe to diff and review)
+customers.xlsx                your data
+fragments/greeting.docx       one file per Word fragment — open it in Word any time
+fragments/greeting.preview.png  Word's own rendering, shown inside the block
+output/                       generated documents
+```
+
+Fragments are ordinary Word documents, so they double as a reusable paragraph library:
+point two blocks (or two programs) at the same file and both use it. If you edit a
+fragment directly in Word rather than through the editor, press ⟳ on the block to
+re-read it.
+
 ## Notes
 
-- Relative file paths (data sources, templates, output folder) resolve against the folder
-  containing the `.mos.json` program — keep the program next to its data.
+- Relative file paths (data sources, templates, fragments, output folder) resolve against
+  the folder containing the `.mos.json` program — keep the program next to its data.
 - Word generation requires desktop Microsoft Word (any recent version; the writer uses
   late-bound OLE automation, no interop assemblies).
 - Database query interpolation inlines values into the SQL text — only use it with trusted

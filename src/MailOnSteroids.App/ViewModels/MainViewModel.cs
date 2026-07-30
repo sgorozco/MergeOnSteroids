@@ -10,6 +10,7 @@ using System.Windows.Threading;
 using MailOnSteroids.App.Common;
 using MailOnSteroids.Core;
 using MailOnSteroids.Core.Blocks;
+using MailOnSteroids.Core.Fragments;
 using MailOnSteroids.Core.Runtime;
 using MailOnSteroids.Core.Samples;
 using Microsoft.Win32;
@@ -18,6 +19,9 @@ namespace MailOnSteroids.App.ViewModels;
 
 public sealed class MainViewModel : INotifyPropertyChanged
 {
+    /// <summary>Product name, used as the caption of every dialog.</summary>
+    public const string AppName = "Mail on Steroids";
+
     public static MainViewModel? Current { get; private set; }
 
     private readonly Dispatcher _dispatcher = Application.Current.Dispatcher;
@@ -53,6 +57,9 @@ public sealed class MainViewModel : INotifyPropertyChanged
         EditFragmentCommand = new ParamRelayCommand(
             p => EditFragment(p as WordFragmentBlock),
             p => !IsRunning && p is WordFragmentBlock);
+        RefreshFragmentCommand = new ParamRelayCommand(
+            p => RefreshFragment(p as WordFragmentBlock),
+            p => !IsRunning && p is WordFragmentBlock { FragmentFile.Length: > 0 });
 
         LoadProgram(new ProgramModel(), null);
     }
@@ -96,7 +103,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
     }
 
     public string WindowTitle =>
-        $"Mail on Steroids — {(CurrentFilePath is null ? "unsaved program" : Path.GetFileName(CurrentFilePath))}{(IsDirty ? " *" : "")}";
+        $"{AppName} — {(CurrentFilePath is null ? "unsaved program" : Path.GetFileName(CurrentFilePath))}{(IsDirty ? " *" : "")}";
 
     public string LogText => _log.ToString();
 
@@ -123,6 +130,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public RelayCommand DeleteSelectedCommand { get; }
     public RelayCommand ClearLogCommand { get; }
     public ParamRelayCommand EditFragmentCommand { get; }
+    public ParamRelayCommand RefreshFragmentCommand { get; }
 
     // -------------------------------------------------------- file handling
 
@@ -137,7 +145,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         if (!ConfirmDiscard()) return;
         var dialog = new OpenFileDialog
         {
-            Filter = "Mail on Steroids program (*.mos.json)|*.mos.json|JSON files (*.json)|*.json|All files (*.*)|*.*"
+            Filter = $"{AppName} program (*.mos.json)|*.mos.json|JSON files (*.json)|*.json|All files (*.*)|*.*"
         };
         if (dialog.ShowDialog() != true) return;
         try
@@ -146,7 +154,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Could not open program:\n{ex.Message}", "Mail on Steroids",
+            MessageBox.Show($"Could not open program:\n{ex.Message}", AppName,
                 MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
@@ -158,7 +166,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         {
             var dialog = new SaveFileDialog
             {
-                Filter = "Mail on Steroids program (*.mos.json)|*.mos.json",
+                Filter = $"{AppName} program (*.mos.json)|*.mos.json",
                 FileName = SanitizeName(Program.Name) + ProgramSerializer.FileExtension
             };
             if (dialog.ShowDialog() != true) return;
@@ -173,7 +181,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Could not save program:\n{ex.Message}", "Mail on Steroids",
+            MessageBox.Show($"Could not save program:\n{ex.Message}", AppName,
                 MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
@@ -191,7 +199,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Could not create sample:\n{ex.Message}", "Mail on Steroids",
+            MessageBox.Show($"Could not create sample:\n{ex.Message}", AppName,
                 MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
@@ -205,7 +213,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Could not open program:\n{ex.Message}", "Mail on Steroids",
+            MessageBox.Show($"Could not open program:\n{ex.Message}", AppName,
                 MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
@@ -214,7 +222,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
     {
         if (!IsDirty) return true;
         var answer = MessageBox.Show(
-            "The current program has unsaved changes. Discard them?", "Mail on Steroids",
+            "The current program has unsaved changes. Discard them?", AppName,
             MessageBoxButton.YesNo, MessageBoxImage.Warning);
         return answer == MessageBoxResult.Yes;
     }
@@ -227,8 +235,9 @@ public sealed class MainViewModel : INotifyPropertyChanged
         HookTree(program);
         CurrentFilePath = path;
         SelectedBlock = null;
-        IsDirty = false;
         RefreshSources();
+        HydrateFragments();
+        IsDirty = false;   // hydration touches blocks; that is not a user edit
     }
 
     // --------------------------------------------------------- tree tracking
@@ -300,24 +309,40 @@ public sealed class MainViewModel : INotifyPropertyChanged
     // ---------------------------------------------------------------- editing
 
     /// <summary>
-    /// The heart of the fragment experiment: open the fragment in a real Word
-    /// window, let the user edit there, capture the result back into the block
-    /// (formatted XML + Word-rendered preview image).
+    /// The heart of the fragment experiment: open the fragment's own .docx in a
+    /// real Word window, let the user edit it there, then save it back and refresh
+    /// the block's Word-rendered preview.
     /// </summary>
     private void EditFragment(WordFragmentBlock? block)
     {
         if (block is null) return;
+        if (CurrentFilePath is null)
+        {
+            MessageBox.Show(
+                "Save the program first.\n\nFragments are stored as small .docx files next to the " +
+                "program file, so the program needs a location before one can be created.",
+                AppName, MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
 
-        Core.Interop.WordFragmentEditSession? session;
+        var baseFolder = Path.GetDirectoryName(CurrentFilePath)!;
+        var relative = string.IsNullOrWhiteSpace(block.FragmentFile)
+            ? FragmentFiles.DefaultRelativePath(block.Id)
+            : block.FragmentFile;
+        var fragmentPath = Path.GetFullPath(Path.Combine(baseFolder, relative));
+
+        Core.Interop.WordFragmentEditSession session;
         try
         {
             System.Windows.Input.Mouse.OverrideCursor = System.Windows.Input.Cursors.Wait;
-            session = Core.Interop.WordFragmentEditSession.Start(
-                block.HasContent ? block.FragmentXml : null);
+            session = File.Exists(fragmentPath)
+                ? Core.Interop.WordFragmentEditSession.OpenFile(fragmentPath)
+                : Core.Interop.WordFragmentEditSession.Start(
+                    string.IsNullOrWhiteSpace(block.LegacyFragmentXml) ? null : block.LegacyFragmentXml);
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Could not start Microsoft Word:\n{ex.Message}", "Mail on Steroids",
+            MessageBox.Show($"Could not start Microsoft Word:\n{ex.Message}", AppName,
                 MessageBoxButton.OK, MessageBoxImage.Error);
             return;
         }
@@ -330,23 +355,90 @@ public sealed class MainViewModel : INotifyPropertyChanged
         {
             var dialog = new Views.WordEditDialog { Owner = Application.Current.MainWindow };
             if (dialog.ShowDialog() == true)
-            {
-                var capture = session.Capture();
-                block.FragmentXml = capture.Xml;
-                block.PlainText = capture.PlainText;
-                block.PreviewPng = capture.PreviewPng.Length > 0 ? capture.PreviewPng : null;
-                Log($"Fragment updated ({capture.PlainText.Split('\n').Length} paragraph(s)).");
-            }
+                ApplyCapture(block, fragmentPath, session.SaveAs(fragmentPath), baseFolder);
         }
         catch (Exception ex)
         {
             MessageBox.Show(
-                $"Could not read the fragment back from Word (was the document closed?):\n{ex.Message}",
-                "Mail on Steroids", MessageBoxButton.OK, MessageBoxImage.Warning);
+                $"Could not save the fragment back from Word (was the document closed?):\n{ex.Message}",
+                AppName, MessageBoxButton.OK, MessageBoxImage.Warning);
         }
         finally
         {
             try { session.Dispose(); } catch { /* Word may already be gone */ }
+        }
+    }
+
+    /// <summary>
+    /// Re-reads a fragment file — use it after editing the .docx directly in Word
+    /// (from Explorer, say), or after pointing the block at a different file.
+    /// </summary>
+    private void RefreshFragment(WordFragmentBlock? block)
+    {
+        if (block is null || string.IsNullOrWhiteSpace(block.FragmentFile)) return;
+
+        var baseFolder = CurrentFilePath is not null ? Path.GetDirectoryName(CurrentFilePath)! : RunBaseFolder;
+        var fragmentPath = Path.GetFullPath(Path.Combine(baseFolder, block.FragmentFile));
+        if (!File.Exists(fragmentPath))
+        {
+            MessageBox.Show($"Fragment file not found:\n{fragmentPath}", AppName,
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        try
+        {
+            System.Windows.Input.Mouse.OverrideCursor = System.Windows.Input.Cursors.Wait;
+            using var session = Core.Interop.WordFragmentEditSession.OpenFile(fragmentPath, visible: false);
+            ApplyCapture(block, fragmentPath, session.Capture(), baseFolder);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Could not read the fragment:\n{ex.Message}", AppName,
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+        finally
+        {
+            System.Windows.Input.Mouse.OverrideCursor = null;
+        }
+    }
+
+    private void ApplyCapture(
+        WordFragmentBlock block, string fragmentPath, Core.Interop.FragmentCapture capture, string baseFolder)
+    {
+        FragmentFiles.WritePreview(fragmentPath, capture.PreviewPng);
+        block.FragmentFile = FragmentFiles.MakeRelative(baseFolder, fragmentPath);
+        block.LegacyFragmentXml = null;   // migrated to a file
+        block.PlainText = capture.PlainText;
+        block.PreviewImage = capture.PreviewPng.Length > 0 ? capture.PreviewPng : null;
+        Log($"Fragment '{block.FragmentFile}' updated — " +
+            $"{capture.PlainText.Split('\n').Length} paragraph(s).");
+    }
+
+    /// <summary>Loads each fragment's text and preview image from its sidecar files.</summary>
+    private void HydrateFragments()
+    {
+        if (CurrentFilePath is null) return;
+        var baseFolder = Path.GetDirectoryName(CurrentFilePath)!;
+
+        foreach (var block in Program.AllBlocks().OfType<WordFragmentBlock>())
+        {
+            if (string.IsNullOrWhiteSpace(block.FragmentFile)) continue;
+            var path = Path.GetFullPath(Path.Combine(baseFolder, block.FragmentFile));
+            if (!File.Exists(path))
+            {
+                Log($"warning: fragment file missing — {block.FragmentFile}");
+                continue;
+            }
+            block.PreviewImage = FragmentFiles.TryReadPreview(path);
+            try
+            {
+                block.PlainText = FragmentFiles.ReadPlainText(path);
+            }
+            catch (Exception ex)
+            {
+                Log($"warning: could not read fragment '{block.FragmentFile}': {ex.Message}");
+            }
         }
     }
 

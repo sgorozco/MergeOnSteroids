@@ -22,6 +22,7 @@ public sealed class WordComWriter : IDocumentWriter
     private const int WdFormatXMLDocument = 12; // .docx
     private const int WdCollapseEnd = 0;
 
+    private readonly Dictionary<string, string> _fragmentXmlCache = new(StringComparer.OrdinalIgnoreCase);
     private RunOptions _options = new();
     private dynamic? _app;
     private dynamic? _doc;
@@ -73,10 +74,11 @@ public sealed class WordComWriter : IDocumentWriter
         ReleaseCom(range);
     }
 
-    public void AddFragment(string fragmentXml, string plainText,
+    public void AddFragment(FragmentContent fragment, string plainText,
         IReadOnlyList<KeyValuePair<string, string>> replacements)
     {
         var doc = RequireDoc();
+        var fragmentXml = fragment.InlineXml ?? ReadFragmentXml(fragment.DocxPath);
         if (string.IsNullOrWhiteSpace(fragmentXml)) return;
 
         // Remember where the fragment starts so substitution stays inside it.
@@ -94,6 +96,38 @@ public sealed class WordComWriter : IDocumentWriter
         dynamic after = doc.Bookmarks["\\endofdoc"].Range;
         after.InsertParagraphAfter();
         ReleaseCom(after);
+    }
+
+    /// <summary>
+    /// Flat OPC of a fragment .docx, read through Word and cached for the run so a
+    /// loop over 500 records opens each fragment file once, not 500 times.
+    /// </summary>
+    private string ReadFragmentXml(string? docxPath)
+    {
+        if (string.IsNullOrWhiteSpace(docxPath)) return "";
+        if (_fragmentXmlCache.TryGetValue(docxPath, out var cached)) return cached;
+
+        var app = RequireApp();
+        // Positional args: FileName, ConfirmConversions, ReadOnly, AddToRecentFiles,
+        // then optional up to Visible (12th) — kept invisible even when ShowWord is on.
+        dynamic doc = app.Documents.Open(docxPath, false, true, false,
+            Type.Missing, Type.Missing, Type.Missing, Type.Missing,
+            Type.Missing, Type.Missing, Type.Missing, false);
+        try
+        {
+            int end = Math.Max(0, (int)doc.Content.End - 1);
+            if (end == 0) return _fragmentXmlCache[docxPath] = "";
+
+            dynamic range = doc.Range(0, end);
+            string xml = range.WordOpenXML;
+            ReleaseCom(range);
+            return _fragmentXmlCache[docxPath] = xml;
+        }
+        finally
+        {
+            try { doc.Close(0); } catch { /* best effort */ }
+            ReleaseCom(doc);
+        }
     }
 
     /// <summary>

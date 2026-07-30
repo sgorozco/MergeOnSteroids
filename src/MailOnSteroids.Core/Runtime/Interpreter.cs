@@ -24,6 +24,7 @@ public sealed class Interpreter
     private readonly Action<string> _log;
     private readonly RunResult _result = new();
     private readonly Dictionary<string, DataTableLite> _fileCache = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, string> _fragmentTextCache = new(StringComparer.OrdinalIgnoreCase);
     private int _documentCount;
 
     public Interpreter(IDocumentWriter writer, RunOptions options, Action<string>? log = null)
@@ -219,9 +220,22 @@ public sealed class Interpreter
             return;
         }
 
-        var plainText = string.IsNullOrEmpty(b.PlainText)
-            ? Interop.WordFragmentText.Extract(b.FragmentXml)
-            : b.PlainText;
+        FragmentContent content;
+        string plainText;
+        if (!string.IsNullOrWhiteSpace(b.FragmentFile))
+        {
+            var path = _options.ResolvePath(b.FragmentFile);
+            if (!File.Exists(path))
+                throw new MosRuntimeException(
+                    $"Fragment file not found: {path} (referenced by a 'Word paragraphs' block).");
+            content = new FragmentContent(path, null);
+            plainText = FragmentText(path);
+        }
+        else
+        {
+            content = new FragmentContent(null, b.LegacyFragmentXml);
+            plainText = Interop.WordFragmentText.Extract(b.LegacyFragmentXml ?? "");
+        }
 
         // Evaluate each {placeholder} found in the fragment's text; the raw
         // placeholder (exactly as it appears in the document, smart quotes and
@@ -243,7 +257,22 @@ public sealed class Interpreter
             replacements.Add(new KeyValuePair<string, string>(raw, value));
         }
 
-        _writer.AddFragment(b.FragmentXml, plainText, replacements);
+        _writer.AddFragment(content, plainText, replacements);
+    }
+
+    /// <summary>Fragment text read straight from the .docx (no Word needed), cached per run.</summary>
+    private string FragmentText(string docxPath)
+    {
+        if (_fragmentTextCache.TryGetValue(docxPath, out var cached)) return cached;
+        try
+        {
+            return _fragmentTextCache[docxPath] = Fragments.FragmentFiles.ReadPlainText(docxPath);
+        }
+        catch (Exception ex)
+        {
+            Warn($"Could not read fragment '{Path.GetFileName(docxPath)}': {ex.Message}");
+            return _fragmentTextCache[docxPath] = "";
+        }
     }
 
     private void ExecuteTable(TableBlock b)

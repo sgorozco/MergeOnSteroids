@@ -31,7 +31,6 @@ public abstract class Block : INotifyPropertyChanged
     public BlockCollection? ParentCollection { get; internal set; }
 
     [JsonIgnore] public abstract string DisplayName { get; }
-    [JsonIgnore] public abstract BlockCategory Category { get; }
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -71,8 +70,6 @@ public abstract class Block : INotifyPropertyChanged
         return ReferenceEquals(this, other);
     }
 }
-
-public enum BlockCategory { Data, Control, Variables, Document }
 
 /// <summary>
 /// Observable list of blocks that keeps each child's <see cref="Block.ParentCollection"/> in sync,

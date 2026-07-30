@@ -50,7 +50,7 @@ public sealed class PreviewWriter : IDocumentWriter
         d.AppendLine($"{prefix}{deco}{text}{decoClose}");
     }
 
-    public void AddFragment(string fragmentXml, string plainText,
+    public void AddFragment(FragmentContent fragment, string plainText,
         IReadOnlyList<KeyValuePair<string, string>> replacements)
     {
         var d = RequireDoc();

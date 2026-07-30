@@ -12,8 +12,6 @@ public abstract class SourceBlockBase : Block
     private string _name = "";
     /// <summary>Name other blocks use to refer to this source.</summary>
     public string Name { get => _name; set => Set(ref _name, value); }
-
-    public override BlockCategory Category => BlockCategory.Data;
 }
 
 public sealed class CsvSourceBlock : SourceBlockBase
@@ -21,7 +19,7 @@ public sealed class CsvSourceBlock : SourceBlockBase
     private string _filePath = "";
     public string FilePath { get => _filePath; set => Set(ref _filePath, value); }
 
-    public override string DisplayName => "open CSV data source";
+    [JsonIgnore] public override string DisplayName => "open CSV data source";
 }
 
 public sealed class ExcelSourceBlock : SourceBlockBase
@@ -33,7 +31,7 @@ public sealed class ExcelSourceBlock : SourceBlockBase
     /// <summary>Worksheet name; empty = first sheet.</summary>
     public string SheetName { get => _sheetName; set => Set(ref _sheetName, value); }
 
-    public override string DisplayName => "open Excel data source";
+    [JsonIgnore] public override string DisplayName => "open Excel data source";
 }
 
 public sealed class DatabaseSourceBlock : SourceBlockBase
@@ -48,7 +46,7 @@ public sealed class DatabaseSourceBlock : SourceBlockBase
     /// <summary>SQL query. Supports {expression} interpolation against the current record scope.</summary>
     public string Query { get => _query; set => Set(ref _query, value); }
 
-    public override string DisplayName => "open database data source";
+    [JsonIgnore] public override string DisplayName => "open database data source";
 }
 
 /// <summary>
@@ -64,7 +62,7 @@ public sealed class FilterSourceBlock : SourceBlockBase
     public string SourceName { get => _sourceName; set => Set(ref _sourceName, value); }
     public string Condition { get => _condition; set => Set(ref _condition, value); }
 
-    public override string DisplayName => "filter data source";
+    [JsonIgnore] public override string DisplayName => "filter data source";
 }
 
 // ---------------------------------------------------------------------------
@@ -85,8 +83,7 @@ public sealed class ForEachBlock : Block
 
     public ForEachBlock() => Children = new BlockCollection(this, nameof(Children));
 
-    public override string DisplayName => "for each record";
-    public override BlockCategory Category => BlockCategory.Control;
+    [JsonIgnore] public override string DisplayName => "for each record";
     public override IEnumerable<BlockCollection> ChildLists() => [Children];
 }
 
@@ -107,8 +104,7 @@ public sealed class IfBlock : Block
         Else = new BlockCollection(this, nameof(Else));
     }
 
-    public override string DisplayName => "if";
-    public override BlockCategory Category => BlockCategory.Control;
+    [JsonIgnore] public override string DisplayName => "if";
     public override IEnumerable<BlockCollection> ChildLists() => [Children, Else];
 }
 
@@ -120,8 +116,7 @@ public sealed class SetVariableBlock : Block
     public string VariableName { get => _variableName; set => Set(ref _variableName, value); }
     public string ValueExpression { get => _valueExpression; set => Set(ref _valueExpression, value); }
 
-    public override string DisplayName => "set variable";
-    public override BlockCategory Category => BlockCategory.Variables;
+    [JsonIgnore] public override string DisplayName => "set variable";
 }
 
 // ---------------------------------------------------------------------------
@@ -148,8 +143,7 @@ public sealed class NewDocumentBlock : Block
 
     public NewDocumentBlock() => Children = new BlockCollection(this, nameof(Children));
 
-    public override string DisplayName => "new document";
-    public override BlockCategory Category => BlockCategory.Document;
+    [JsonIgnore] public override string DisplayName => "new document";
     public override IEnumerable<BlockCollection> ChildLists() => [Children];
 }
 
@@ -181,40 +175,63 @@ public sealed class ParagraphBlock : Block
     public bool Bold { get => _bold; set => Set(ref _bold, value); }
     public bool Italic { get => _italic; set => Set(ref _italic, value); }
 
-    public override string DisplayName => "add paragraph";
-    public override BlockCategory Category => BlockCategory.Document;
+    [JsonIgnore] public override string DisplayName => "add paragraph";
 }
 
 /// <summary>
 /// A fragment of real Word content, authored and formatted directly in Word.
-/// Stored as Flat OPC WordprocessingML (captured via Range.WordOpenXML) plus a
-/// PNG preview rendered by Word itself. At run time the fragment is inserted
+/// The content lives in its own small .docx next to the program (a reusable
+/// "paragraph library" file you can also open straight from Explorer); the
+/// program only stores the relative path. At run time the fragment is inserted
 /// into the output document and {expressions} in its text are substituted,
 /// keeping every bit of Word formatting.
 /// </summary>
 public sealed class WordFragmentBlock : Block
 {
-    private string _fragmentXml = "";
+    private string _fragmentFile = "";
+    private string? _legacyFragmentXml;
     private string _plainText = "";
-    private byte[]? _previewPng;
+    private byte[]? _previewImage;
 
-    /// <summary>Flat OPC package XML of the fragment (empty = not authored yet).</summary>
-    public string FragmentXml
+    /// <summary>
+    /// Path of the fragment .docx, relative to the program file (or absolute).
+    /// Several blocks may point at the same file to reuse a fragment.
+    /// </summary>
+    public string FragmentFile
     {
-        get => _fragmentXml;
-        set { if (Set(ref _fragmentXml, value)) Raise(nameof(HasContent)); }
+        get => _fragmentFile;
+        set { if (Set(ref _fragmentFile, value)) Raise(nameof(HasContent)); }
     }
 
-    /// <summary>Plain text of the fragment (captured with the XML; used for previews and placeholder scanning).</summary>
+    /// <summary>
+    /// Inline Flat OPC content written by the first (pre-sidecar) version of the
+    /// fragment block. Still honoured so old programs keep working; it is
+    /// migrated to a file the next time the fragment is edited.
+    /// </summary>
+    [JsonPropertyName("fragmentXml")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? LegacyFragmentXml
+    {
+        get => _legacyFragmentXml;
+        set { if (Set(ref _legacyFragmentXml, string.IsNullOrWhiteSpace(value) ? null : value)) Raise(nameof(HasContent)); }
+    }
+
+    /// <summary>Fragment text, read from the .docx when the program loads. Not persisted.</summary>
+    [JsonIgnore]
     public string PlainText { get => _plainText; set => Set(ref _plainText, value); }
 
-    /// <summary>PNG image of the fragment as rendered by Word (shown inside the block).</summary>
-    public byte[]? PreviewPng { get => _previewPng; set => Set(ref _previewPng, value); }
+    /// <summary>
+    /// Word's own rendering of the fragment, shown inside the block. Loaded from
+    /// the ".preview.png" file that sits beside the .docx, so it is not persisted here.
+    /// </summary>
+    [JsonIgnore]
+    public byte[]? PreviewImage { get => _previewImage; set => Set(ref _previewImage, value); }
 
-    [JsonIgnore] public bool HasContent => !string.IsNullOrWhiteSpace(FragmentXml);
+    [JsonIgnore]
+    public bool HasContent =>
+        !string.IsNullOrWhiteSpace(FragmentFile) || !string.IsNullOrWhiteSpace(LegacyFragmentXml);
 
-    public override string DisplayName => "Word paragraphs";
-    public override BlockCategory Category => BlockCategory.Document;
+    [JsonIgnore] public override string DisplayName => "Word paragraphs";
 }
 
 /// <summary>
@@ -232,12 +249,10 @@ public sealed class TableBlock : Block
     public string ColumnsSpec { get => _columnsSpec; set => Set(ref _columnsSpec, value); }
     public bool HeaderRow { get => _headerRow; set => Set(ref _headerRow, value); }
 
-    public override string DisplayName => "add table";
-    public override BlockCategory Category => BlockCategory.Document;
+    [JsonIgnore] public override string DisplayName => "add table";
 }
 
 public sealed class PageBreakBlock : Block
 {
-    public override string DisplayName => "page break";
-    public override BlockCategory Category => BlockCategory.Document;
+    [JsonIgnore] public override string DisplayName => "page break";
 }

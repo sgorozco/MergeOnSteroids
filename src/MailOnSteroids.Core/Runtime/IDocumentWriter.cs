@@ -19,6 +19,12 @@ public sealed class RunOptions
 }
 
 /// <summary>
+/// Where a Word fragment's content comes from: its own .docx sidecar, or inline
+/// Flat OPC XML (programs written before sidecar storage existed).
+/// </summary>
+public sealed record FragmentContent(string? DocxPath, string? InlineXml);
+
+/// <summary>
 /// Target that receives document content produced by the interpreter.
 /// Implementations: Word COM automation, plain-text preview.
 /// </summary>
@@ -30,11 +36,11 @@ public interface IDocumentWriter : IDisposable
     void BeginDocument(string? templatePath);
     void AddParagraph(string text, string style, bool bold, bool italic);
     /// <summary>
-    /// Inserts a formatted Word fragment (Flat OPC XML), then applies the given
-    /// literal find→replace substitutions inside the inserted content only.
+    /// Inserts a formatted Word fragment, then applies the given literal
+    /// find→replace substitutions inside the inserted content only.
     /// <paramref name="plainText"/> is the fragment's text for non-Word writers.
     /// </summary>
-    void AddFragment(string fragmentXml, string plainText,
+    void AddFragment(FragmentContent fragment, string plainText,
         IReadOnlyList<KeyValuePair<string, string>> replacements);
     void AddTable(IReadOnlyList<string> headers, IReadOnlyList<string[]> rows, bool headerRow);
     void PageBreak();

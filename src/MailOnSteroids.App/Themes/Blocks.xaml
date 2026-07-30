@@ -377,19 +377,27 @@
             <StackPanel>
                 <WrapPanel>
                     <TextBlock Style="{StaticResource BlockLabel}" Text="🅦 Word paragraphs"/>
-                    <Button Content="✏ Edit in Word" Margin="8,0,0,0" Padding="8,2" FontSize="12"
+                    <TextBox Style="{StaticResource BlockInput}" MinWidth="190"
+                             Text="{Binding FragmentFile, UpdateSourceTrigger=PropertyChanged}"
+                             ToolTip="The .docx holding this fragment, relative to the program file. Point two blocks at the same file to reuse it."/>
+                    <Button Content="✏ Edit in Word" Margin="6,0,0,0" Padding="8,2" FontSize="12"
                             Command="{Binding DataContext.EditFragmentCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                             CommandParameter="{Binding}"
-                            ToolTip="Opens this fragment in Microsoft Word for direct editing"/>
+                            ToolTip="Opens this fragment's document in Microsoft Word for direct editing"/>
+                    <Button Content="⟳" Margin="3,0,0,0" Padding="7,2" FontSize="12"
+                            Command="{Binding DataContext.RefreshFragmentCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                            CommandParameter="{Binding}"
+                            ToolTip="Re-read the file — use after editing the .docx directly in Word"/>
                 </WrapPanel>
                 <!-- the fragment exactly as Word renders it -->
                 <Border Background="White" CornerRadius="4" Padding="8" Margin="2,5,2,0"
                         HorizontalAlignment="Left" BorderBrush="#22000000" BorderThickness="1">
                     <StackPanel>
-                        <Image Source="{Binding PreviewPng, Converter={StaticResource BytesToImage}}"
+                        <Image Source="{Binding PreviewImage, Converter={StaticResource BytesToImage}}"
                                MaxWidth="440" Stretch="Uniform" StretchDirection="DownOnly"
                                HorizontalAlignment="Left" SnapsToDevicePixels="True"/>
-                        <TextBlock Foreground="#888" FontStyle="Italic" FontSize="12"
+                        <TextBlock Foreground="#888" FontStyle="Italic" FontSize="12" TextWrapping="Wrap"
+                                   MaxWidth="420" HorizontalAlignment="Left"
                                    Text="empty — click “Edit in Word” to write formatted paragraphs (use {expressions} for data)">
                             <TextBlock.Style>
                                 <Style TargetType="TextBlock">
@@ -398,6 +406,25 @@
                                         <DataTrigger Binding="{Binding HasContent}" Value="False">
                                             <Setter Property="Visibility" Value="Visible"/>
                                         </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                        <!-- content exists but Word has not rendered a preview yet -->
+                        <TextBlock Foreground="#888" FontStyle="Italic" FontSize="12" TextWrapping="Wrap"
+                                   MaxWidth="420" HorizontalAlignment="Left"
+                                   Text="{Binding PlainText}">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <MultiDataTrigger>
+                                            <MultiDataTrigger.Conditions>
+                                                <Condition Binding="{Binding HasContent}" Value="True"/>
+                                                <Condition Binding="{Binding PreviewImage}" Value="{x:Null}"/>
+                                            </MultiDataTrigger.Conditions>
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </MultiDataTrigger>
                                     </Style.Triggers>
                                 </Style>
                             </TextBlock.Style>

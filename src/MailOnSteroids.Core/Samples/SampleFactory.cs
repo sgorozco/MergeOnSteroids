@@ -1,5 +1,6 @@
 using System.Text;
 using MailOnSteroids.Core.Blocks;
+using MailOnSteroids.Core.Fragments;
 using MailOnSteroids.Core.Interop;
 
 namespace MailOnSteroids.Core.Samples;
@@ -109,7 +110,10 @@ public static class SampleFactory
         WriteCustomersCsv(Path.Combine(folder, "customers.csv"));
         WriteOrdersCsv(Path.Combine(folder, "orders.csv"));
 
-        var capture = AuthorRichFragment();
+        var relativeFragment = $"{FragmentFiles.FolderName}/carta-saldo.docx";
+        var fragmentPath = Path.Combine(folder, relativeFragment.Replace('/', Path.DirectorySeparatorChar));
+        var capture = AuthorRichFragment(fragmentPath);
+        FragmentFiles.WritePreview(fragmentPath, capture.PreviewPng);
 
         var program = new ProgramModel { Name = "Rich fragment letters", OutputFolder = "output" };
         program.Blocks.Add(new CsvSourceBlock { Name = "customers", FilePath = "customers.csv" });
@@ -122,9 +126,9 @@ public static class SampleFactory
 
         doc.Children.Add(new WordFragmentBlock
         {
-            FragmentXml = capture.Xml,
+            FragmentFile = relativeFragment,
             PlainText = capture.PlainText,
-            PreviewPng = capture.PreviewPng.Length > 0 ? capture.PreviewPng : null
+            PreviewImage = capture.PreviewPng.Length > 0 ? capture.PreviewPng : null
         });
         doc.Children.Add(new ParagraphBlock { TextTemplate = "" });
         doc.Children.Add(new ParagraphBlock
@@ -138,7 +142,7 @@ public static class SampleFactory
         return path;
     }
 
-    private static FragmentCapture AuthorRichFragment()
+    private static FragmentCapture AuthorRichFragment(string docxPath)
     {
         using var session = WordFragmentEditSession.Start(null, visible: false);
         dynamic doc = session.Document;
@@ -159,7 +163,7 @@ public static class SampleFactory
 
         AddStyledParagraph(doc, "Gracias por su preferencia.", -1);
 
-        return session.Capture();
+        return session.SaveAs(docxPath);
     }
 
     /// <summary>Appends a styled paragraph; returns the start position of its text.</summary>
