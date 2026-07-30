@@ -1,0 +1,164 @@
+<Window x:Class="MergeOnSteroids.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        Title="{Binding WindowTitle}" Height="780" Width="1320"
+        Background="#FFFFFF"
+        PreviewKeyDown="Window_PreviewKeyDown"
+        Closing="Window_Closing">
+
+    <Window.InputBindings>
+        <KeyBinding Key="N" Modifiers="Control" Command="{Binding NewCommand}"/>
+        <KeyBinding Key="O" Modifiers="Control" Command="{Binding OpenCommand}"/>
+        <KeyBinding Key="S" Modifiers="Control" Command="{Binding SaveCommand}"/>
+        <KeyBinding Key="S" Modifiers="Control+Shift" Command="{Binding SaveAsCommand}"/>
+        <KeyBinding Key="F5" Command="{Binding RunPreviewCommand}"/>
+        <KeyBinding Key="F6" Command="{Binding RunWordCommand}"/>
+    </Window.InputBindings>
+
+    <Window.Resources>
+        <Style x:Key="ToolButton" TargetType="Button">
+            <Setter Property="Padding" Value="10,5"/>
+            <Setter Property="Margin" Value="2,0"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+    </Window.Resources>
+
+    <DockPanel>
+
+        <!-- ================================ toolbar ================================ -->
+        <Border DockPanel.Dock="Top" Background="#F5F6F8" BorderBrush="#DDDFE4" BorderThickness="0,0,0,1" Padding="8,6">
+            <WrapPanel VerticalAlignment="Center">
+                <Button Style="{StaticResource ToolButton}" Command="{Binding NewCommand}" Content="New"/>
+                <Button Style="{StaticResource ToolButton}" Command="{Binding OpenCommand}" Content="Open…"/>
+                <Button Style="{StaticResource ToolButton}" Command="{Binding SaveCommand}" Content="Save"/>
+                <Button Style="{StaticResource ToolButton}" Command="{Binding SaveAsCommand}" Content="Save As…"/>
+                <Separator Margin="6,0" Width="1" Background="#CCC" Height="22"/>
+                <Button Style="{StaticResource ToolButton}" Command="{Binding LoadSampleCommand}" Content="Load sample"/>
+                <Separator Margin="6,0" Width="1" Background="#CCC" Height="22"/>
+                <Button Style="{StaticResource ToolButton}" Command="{Binding RunPreviewCommand}"
+                        Content="▶ Preview run" ToolTip="Fast text-only run, no Word needed (F5)"/>
+                <Button Style="{StaticResource ToolButton}" Command="{Binding RunWordCommand}"
+                        Content="▶ Generate in Word" FontWeight="SemiBold"
+                        ToolTip="Produce real .docx files through Microsoft Word (F6)"/>
+                <Button Style="{StaticResource ToolButton}" Command="{Binding StopCommand}" Content="■ Stop"/>
+                <CheckBox IsChecked="{Binding ShowWordWindow}" Content="show Word while generating"
+                          VerticalAlignment="Center" Margin="8,0"/>
+                <Separator Margin="6,0" Width="1" Background="#CCC" Height="22"/>
+                <Button Style="{StaticResource ToolButton}" Command="{Binding OpenOutputFolderCommand}"
+                        Content="Open output folder"/>
+            </WrapPanel>
+        </Border>
+
+        <!-- ================================ status bar ================================ -->
+        <StatusBar DockPanel.Dock="Bottom">
+            <StatusBarItem>
+                <TextBlock Text="{Binding CurrentFilePath, TargetNullValue='(not saved yet — save the program next to your data files so relative paths work)'}"/>
+            </StatusBarItem>
+        </StatusBar>
+
+        <!-- ================================ main area ================================ -->
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="250"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="380"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- palette -->
+            <DockPanel Grid.Column="0" Background="#FAFBFC">
+                <TextBlock DockPanel.Dock="Top" Text="Blocks — drag onto the canvas"
+                           Margin="10,8" FontWeight="SemiBold" Foreground="#555"/>
+                <ListBox x:Name="PaletteList"
+                         ItemsSource="{Binding PaletteView}"
+                         Background="Transparent" BorderThickness="0"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                         PreviewMouseLeftButtonDown="PaletteList_PreviewMouseLeftButtonDown"
+                         PreviewMouseMove="PaletteList_PreviewMouseMove"
+                         MouseDoubleClick="PaletteList_MouseDoubleClick">
+                    <ListBox.GroupStyle>
+                        <GroupStyle>
+                            <GroupStyle.HeaderTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding Name}" FontWeight="Bold" Foreground="#777"
+                                               Margin="4,10,0,3" FontSize="11.5"/>
+                                </DataTemplate>
+                            </GroupStyle.HeaderTemplate>
+                        </GroupStyle>
+                    </ListBox.GroupStyle>
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <Border Background="{Binding Brush}" CornerRadius="6" Padding="9,5" Margin="0,1"
+                                    HorizontalAlignment="Left" ToolTip="{Binding Description}">
+                                <TextBlock Text="{Binding Title}" Foreground="White" FontWeight="SemiBold" FontSize="12"/>
+                            </Border>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </DockPanel>
+
+            <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch" Background="#E4E6EA"/>
+
+            <!-- canvas -->
+            <Border Grid.Column="2" Background="#E9EDF2">
+                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
+                              Padding="16,12" Focusable="False">
+                    <StackPanel>
+                        <!-- program "hat" block -->
+                        <Border Background="#5B6470" CornerRadius="10,10,6,6" Padding="12,8"
+                                HorizontalAlignment="Left" Margin="0,0,0,4">
+                            <WrapPanel>
+                                <TextBlock Text="▶ program" Foreground="White" FontWeight="Bold"
+                                           VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                <TextBox Style="{StaticResource BlockInput}" MinWidth="170"
+                                         Text="{Binding Program.Name, UpdateSourceTrigger=PropertyChanged}"/>
+                                <TextBlock Text="output folder" Foreground="White" FontWeight="SemiBold"
+                                           VerticalAlignment="Center" Margin="10,0,6,0"/>
+                                <TextBox Style="{StaticResource BlockInput}" MinWidth="150"
+                                         Text="{Binding Program.OutputFolder, UpdateSourceTrigger=PropertyChanged}"
+                                         ToolTip="Where documents are saved. Relative paths resolve against the program file."/>
+                            </WrapPanel>
+                        </Border>
+
+                        <!-- the block program -->
+                        <ContentControl Content="{Binding Program.Blocks}"
+                                        ContentTemplate="{StaticResource ChildListTemplate}"
+                                        Focusable="False"/>
+
+                        <!-- extra room so dropping at the bottom is easy -->
+                        <Border Height="120"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </Border>
+
+            <GridSplitter Grid.Column="3" Width="5" HorizontalAlignment="Stretch" Background="#E4E6EA"/>
+
+            <!-- run panel -->
+            <TabControl Grid.Column="4" BorderThickness="0,1,0,0" Background="White">
+                <TabItem Header="Run log">
+                    <DockPanel>
+                        <Button DockPanel.Dock="Top" Content="Clear" HorizontalAlignment="Right"
+                                Command="{Binding ClearLogCommand}" Margin="4" Padding="8,2"/>
+                        <TextBox x:Name="LogBox" Text="{Binding LogText, Mode=OneWay}" IsReadOnly="True"
+                                 FontFamily="Consolas" FontSize="12" TextWrapping="Wrap"
+                                 VerticalScrollBarVisibility="Auto" BorderThickness="0"
+                                 TextChanged="LogBox_TextChanged"/>
+                    </DockPanel>
+                </TabItem>
+                <TabItem Header="Documents">
+                    <DockPanel>
+                        <TextBlock DockPanel.Dock="Top" Margin="8,6" Foreground="#666"
+                                   Text="Files produced by the last run — double-click to open."/>
+                        <ListBox ItemsSource="{Binding OutputFiles}"
+                                 MouseDoubleClick="OutputFiles_MouseDoubleClick"
+                                 BorderThickness="0" FontSize="12"/>
+                    </DockPanel>
+                </TabItem>
+            </TabControl>
+        </Grid>
+    </DockPanel>
+</Window>

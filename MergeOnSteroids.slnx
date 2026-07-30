@@ -1,0 +1,7 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/MergeOnSteroids.App/MergeOnSteroids.App.csproj" />
+    <Project Path="src/MergeOnSteroids.Cli/MergeOnSteroids.Cli.csproj" />
+    <Project Path="src/MergeOnSteroids.Core/MergeOnSteroids.Core.csproj" />
+  </Folder>
+</Solution>

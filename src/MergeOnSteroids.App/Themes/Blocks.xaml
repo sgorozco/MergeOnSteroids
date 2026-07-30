@@ -1,0 +1,465 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:b="clr-namespace:MergeOnSteroids.Core.Blocks;assembly=MergeOnSteroids.Core"
+                    xmlns:controls="clr-namespace:MergeOnSteroids.App.Controls"
+                    xmlns:common="clr-namespace:MergeOnSteroids.App.Common">
+
+    <!-- ============================== palette / block colors ============================== -->
+    <SolidColorBrush x:Key="DataBrush" Color="#59C059"/>
+    <SolidColorBrush x:Key="DataBorderBrush" Color="#389438"/>
+    <SolidColorBrush x:Key="ControlBrush" Color="#FFAB19"/>
+    <SolidColorBrush x:Key="ControlBorderBrush" Color="#C68C17"/>
+    <SolidColorBrush x:Key="VariablesBrush" Color="#FF8C1A"/>
+    <SolidColorBrush x:Key="VariablesBorderBrush" Color="#DB6E00"/>
+    <SolidColorBrush x:Key="DocumentBrush" Color="#4C97FF"/>
+    <SolidColorBrush x:Key="DocumentBorderBrush" Color="#3373CC"/>
+
+    <common:StyleFontSizeConverter x:Key="StyleFontSize"/>
+    <common:StyleWeightConverter x:Key="StyleWeight"/>
+    <common:StyleItalicConverter x:Key="StyleItalic"/>
+    <common:BytesToImageConverter x:Key="BytesToImage"/>
+
+    <!-- ============================== small shared styles ============================== -->
+
+    <Style x:Key="BlockLabel" TargetType="TextBlock">
+        <Setter Property="Foreground" Value="White"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="Margin" Value="3,0"/>
+    </Style>
+
+    <Style x:Key="BlockInput" TargetType="TextBox">
+        <Setter Property="Foreground" Value="#454B5E"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="MinWidth" Value="56"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="Margin" Value="2,1"/>
+        <Setter Property="Padding" Value="6,2"/>
+        <Setter Property="Background" Value="White"/>
+        <Setter Property="BorderBrush" Value="#33000000"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="TextBox">
+                    <Border Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="10"
+                            Padding="{TemplateBinding Padding}">
+                        <ScrollViewer x:Name="PART_ContentHost" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter Property="BorderBrush" Value="#3B82F6"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="BlockInputWide" TargetType="TextBox" BasedOn="{StaticResource BlockInput}">
+        <Setter Property="MinWidth" Value="240"/>
+        <Setter Property="MaxWidth" Value="460"/>
+        <Setter Property="TextWrapping" Value="Wrap"/>
+        <Setter Property="AcceptsReturn" Value="True"/>
+    </Style>
+
+    <Style x:Key="SourceCombo" TargetType="ComboBox">
+        <Setter Property="IsEditable" Value="True"/>
+        <Setter Property="MinWidth" Value="96"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="Margin" Value="2,1"/>
+        <Setter Property="ItemsSource"
+                Value="{Binding DataContext.AvailableSources, RelativeSource={RelativeSource AncestorType=Window}}"/>
+    </Style>
+
+    <Style x:Key="BlockCheck" TargetType="CheckBox">
+        <Setter Property="Foreground" Value="White"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="Margin" Value="5,0"/>
+    </Style>
+
+    <!-- ============================== drop zone ============================== -->
+
+    <Style TargetType="controls:DropZone">
+        <Setter Property="Height" Value="8"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="controls:DropZone">
+                    <Grid Background="Transparent">
+                        <Border x:Name="Bar" Height="5" CornerRadius="2.5" Margin="2,0"
+                                Background="Transparent" VerticalAlignment="Center"/>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsActive" Value="True">
+                            <Setter TargetName="Bar" Property="Background" Value="#3B82F6"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ============================== block chrome ============================== -->
+
+    <Style TargetType="controls:BlockChrome">
+        <Setter Property="Focusable" Value="False"/>
+        <Setter Property="HorizontalAlignment" Value="Left"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="controls:BlockChrome">
+                    <Border x:Name="Body"
+                            Background="{TemplateBinding BlockBrush}"
+                            BorderBrush="{TemplateBinding BlockBorderBrush}"
+                            BorderThickness="1.5"
+                            CornerRadius="7"
+                            Padding="9,6">
+                        <ContentPresenter/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="Body" Property="BorderBrush" Value="White"/>
+                            <Setter TargetName="Body" Property="Effect">
+                                <Setter.Value>
+                                    <DropShadowEffect Color="#3B82F6" BlurRadius="10" ShadowDepth="0" Opacity="0.9"/>
+                                </Setter.Value>
+                            </Setter>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ============================== child list (the C-shape body) ============================== -->
+
+    <DataTemplate x:Key="ChildListTemplate">
+        <StackPanel>
+            <ItemsControl ItemsSource="{Binding}" Focusable="False">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <StackPanel>
+                            <controls:DropZone Mode="InsertBefore"/>
+                            <ContentControl Content="{Binding}" Focusable="False"/>
+                        </StackPanel>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <controls:DropZone Mode="Append" Height="14"/>
+        </StackPanel>
+    </DataTemplate>
+
+    <!-- ============================== data source blocks ============================== -->
+
+    <DataTemplate DataType="{x:Type b:CsvSourceBlock}">
+        <controls:BlockChrome BlockBrush="{StaticResource DataBrush}"
+                              BlockBorderBrush="{StaticResource DataBorderBrush}">
+            <WrapPanel>
+                <TextBlock Style="{StaticResource BlockLabel}" Text="open CSV"/>
+                <TextBox Style="{StaticResource BlockInput}"
+                         Text="{Binding FilePath, UpdateSourceTrigger=PropertyChanged}" MinWidth="200"
+                         ToolTip="CSV file path (relative paths resolve against the program file)"/>
+                <TextBlock Style="{StaticResource BlockLabel}" Text="as"/>
+                <TextBox Style="{StaticResource BlockInput}"
+                         Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}"
+                         ToolTip="Name used by other blocks to refer to this source"/>
+            </WrapPanel>
+        </controls:BlockChrome>
+    </DataTemplate>
+
+    <DataTemplate DataType="{x:Type b:ExcelSourceBlock}">
+        <controls:BlockChrome BlockBrush="{StaticResource DataBrush}"
+                              BlockBorderBrush="{StaticResource DataBorderBrush}">
+            <WrapPanel>
+                <TextBlock Style="{StaticResource BlockLabel}" Text="open Excel"/>
+                <TextBox Style="{StaticResource BlockInput}"
+                         Text="{Binding FilePath, UpdateSourceTrigger=PropertyChanged}" MinWidth="200"
+                         ToolTip="Excel file path (.xlsx)"/>
+                <TextBlock Style="{StaticResource BlockLabel}" Text="sheet"/>
+                <TextBox Style="{StaticResource BlockInput}"
+                         Text="{Binding SheetName, UpdateSourceTrigger=PropertyChanged}"
+                         ToolTip="Worksheet name (empty = first sheet)"/>
+                <TextBlock Style="{StaticResource BlockLabel}" Text="as"/>
+                <TextBox Style="{StaticResource BlockInput}"
+                         Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}"/>
+            </WrapPanel>
+        </controls:BlockChrome>
+    </DataTemplate>
+
+    <DataTemplate DataType="{x:Type b:DatabaseSourceBlock}">
+        <controls:BlockChrome BlockBrush="{StaticResource DataBrush}"
+                              BlockBorderBrush="{StaticResource DataBorderBrush}">
+            <StackPanel>
+                <WrapPanel>
+                    <TextBlock Style="{StaticResource BlockLabel}" Text="open database"/>
+                    <ComboBox SelectedValue="{Binding Provider}" SelectedValuePath="Content"
+                              VerticalAlignment="Center" Margin="2,1" FontSize="12">
+                        <ComboBoxItem Content="SqlServer"/>
+                        <ComboBoxItem Content="Sqlite"/>
+                    </ComboBox>
+                    <TextBlock Style="{StaticResource BlockLabel}" Text="as"/>
+                    <TextBox Style="{StaticResource BlockInput}"
+                             Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}"/>
+                </WrapPanel>
+                <WrapPanel>
+                    <TextBlock Style="{StaticResource BlockLabel}" Text="connection"/>
+                    <TextBox Style="{StaticResource BlockInput}"
+                             Text="{Binding ConnectionString, UpdateSourceTrigger=PropertyChanged}" MinWidth="320"
+                             ToolTip="e.g. Server=.;Database=Sales;Integrated Security=true;TrustServerCertificate=true"/>
+                </WrapPanel>
+                <WrapPanel>
+                    <TextBlock Style="{StaticResource BlockLabel}" Text="query"/>
+                    <TextBox Style="{StaticResource BlockInputWide}"
+                             Text="{Binding Query, UpdateSourceTrigger=PropertyChanged}" MinWidth="320"
+                             ToolTip="SQL query. {expressions} are interpolated from the current record."/>
+                </WrapPanel>
+            </StackPanel>
+        </controls:BlockChrome>
+    </DataTemplate>
+
+    <DataTemplate DataType="{x:Type b:FilterSourceBlock}">
+        <controls:BlockChrome BlockBrush="{StaticResource DataBrush}"
+                              BlockBorderBrush="{StaticResource DataBorderBrush}">
+            <WrapPanel>
+                <TextBlock Style="{StaticResource BlockLabel}" Text="filter"/>
+                <ComboBox Style="{StaticResource SourceCombo}"
+                          Text="{Binding SourceName, UpdateSourceTrigger=PropertyChanged}"/>
+                <TextBlock Style="{StaticResource BlockLabel}" Text="where"/>
+                <TextBox Style="{StaticResource BlockInput}"
+                         Text="{Binding Condition, UpdateSourceTrigger=PropertyChanged}" MinWidth="180"
+                         ToolTip="Condition per row, e.g.  CustomerId = c.Id"/>
+                <TextBlock Style="{StaticResource BlockLabel}" Text="as"/>
+                <TextBox Style="{StaticResource BlockInput}"
+                         Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}"/>
+            </WrapPanel>
+        </controls:BlockChrome>
+    </DataTemplate>
+
+    <!-- ============================== control blocks ============================== -->
+
+    <DataTemplate DataType="{x:Type b:ForEachBlock}">
+        <controls:BlockChrome BlockBrush="{StaticResource ControlBrush}"
+                              BlockBorderBrush="{StaticResource ControlBorderBrush}">
+            <StackPanel>
+                <WrapPanel>
+                    <TextBlock Style="{StaticResource BlockLabel}" Text="for each"/>
+                    <TextBox Style="{StaticResource BlockInput}"
+                             Text="{Binding Alias, UpdateSourceTrigger=PropertyChanged}" MinWidth="42"
+                             ToolTip="Alias for the current record — use it as alias.Field"/>
+                    <TextBlock Style="{StaticResource BlockLabel}" Text="in"/>
+                    <ComboBox Style="{StaticResource SourceCombo}"
+                              Text="{Binding SourceName, UpdateSourceTrigger=PropertyChanged}"/>
+                </WrapPanel>
+                <Border Margin="6,5,0,0" Padding="8,2,4,2" CornerRadius="0,0,0,8"
+                        BorderThickness="5,0,0,5" BorderBrush="#59FFFFFF" Background="#1A000000">
+                    <ContentControl Content="{Binding Children}"
+                                    ContentTemplate="{StaticResource ChildListTemplate}" Focusable="False"/>
+                </Border>
+            </StackPanel>
+        </controls:BlockChrome>
+    </DataTemplate>
+
+    <DataTemplate DataType="{x:Type b:IfBlock}">
+        <controls:BlockChrome BlockBrush="{StaticResource ControlBrush}"
+                              BlockBorderBrush="{StaticResource ControlBorderBrush}">
+            <StackPanel>
+                <WrapPanel>
+                    <TextBlock Style="{StaticResource BlockLabel}" Text="if"/>
+                    <TextBox Style="{StaticResource BlockInput}"
+                             Text="{Binding Condition, UpdateSourceTrigger=PropertyChanged}" MinWidth="220"
+                             ToolTip="e.g.  COUNT(orders) &gt; 0 AND c.Balance &gt; 1000"/>
+                    <TextBlock Style="{StaticResource BlockLabel}" Text="then"/>
+                </WrapPanel>
+                <Border Margin="6,5,0,0" Padding="8,2,4,2"
+                        BorderThickness="5,0,0,0" BorderBrush="#59FFFFFF" Background="#1A000000">
+                    <ContentControl Content="{Binding Children}"
+                                    ContentTemplate="{StaticResource ChildListTemplate}" Focusable="False"/>
+                </Border>
+                <TextBlock Style="{StaticResource BlockLabel}" Text="else" Margin="6,4,0,0"/>
+                <Border Margin="6,2,0,0" Padding="8,2,4,2" CornerRadius="0,0,0,8"
+                        BorderThickness="5,0,0,5" BorderBrush="#59FFFFFF" Background="#1A000000">
+                    <ContentControl Content="{Binding Else}"
+                                    ContentTemplate="{StaticResource ChildListTemplate}" Focusable="False"/>
+                </Border>
+            </StackPanel>
+        </controls:BlockChrome>
+    </DataTemplate>
+
+    <!-- ============================== variables ============================== -->
+
+    <DataTemplate DataType="{x:Type b:SetVariableBlock}">
+        <controls:BlockChrome BlockBrush="{StaticResource VariablesBrush}"
+                              BlockBorderBrush="{StaticResource VariablesBorderBrush}">
+            <WrapPanel>
+                <TextBlock Style="{StaticResource BlockLabel}" Text="set"/>
+                <TextBox Style="{StaticResource BlockInput}"
+                         Text="{Binding VariableName, UpdateSourceTrigger=PropertyChanged}"/>
+                <TextBlock Style="{StaticResource BlockLabel}" Text="to"/>
+                <TextBox Style="{StaticResource BlockInput}"
+                         Text="{Binding ValueExpression, UpdateSourceTrigger=PropertyChanged}" MinWidth="180"
+                         ToolTip="Expression, e.g.  c.Balance * 1.16"/>
+            </WrapPanel>
+        </controls:BlockChrome>
+    </DataTemplate>
+
+    <!-- ============================== document blocks ============================== -->
+
+    <DataTemplate DataType="{x:Type b:NewDocumentBlock}">
+        <controls:BlockChrome BlockBrush="{StaticResource DocumentBrush}"
+                              BlockBorderBrush="{StaticResource DocumentBorderBrush}">
+            <StackPanel>
+                <WrapPanel>
+                    <TextBlock Style="{StaticResource BlockLabel}" Text="📄 new document, save as"/>
+                    <TextBox Style="{StaticResource BlockInput}"
+                             Text="{Binding FileNameTemplate, UpdateSourceTrigger=PropertyChanged}" MinWidth="190"
+                             ToolTip="File name without extension. {expressions} allowed, e.g. Letter_{c.Name}"/>
+                    <TextBlock Style="{StaticResource BlockLabel}" Text="template"/>
+                    <TextBox Style="{StaticResource BlockInput}"
+                             Text="{Binding TemplatePath, UpdateSourceTrigger=PropertyChanged}" MinWidth="110"
+                             ToolTip="Optional .dotx/.docx the document starts from (empty = blank)"/>
+                </WrapPanel>
+                <Border Margin="6,5,0,0" Padding="8,2,4,2" CornerRadius="0,0,0,8"
+                        BorderThickness="5,0,0,5" BorderBrush="#66FFFFFF" Background="#14000000">
+                    <ContentControl Content="{Binding Children}"
+                                    ContentTemplate="{StaticResource ChildListTemplate}" Focusable="False"/>
+                </Border>
+            </StackPanel>
+        </controls:BlockChrome>
+    </DataTemplate>
+
+    <DataTemplate DataType="{x:Type b:ParagraphBlock}">
+        <controls:BlockChrome BlockBrush="{StaticResource DocumentBrush}"
+                              BlockBorderBrush="{StaticResource DocumentBorderBrush}">
+            <StackPanel>
+                <WrapPanel>
+                    <TextBlock Style="{StaticResource BlockLabel}" Text="add paragraph"/>
+                    <ComboBox ItemsSource="{Binding DataContext.ParagraphStyleNames, RelativeSource={RelativeSource AncestorType=Window}}"
+                              SelectedItem="{Binding Style}"
+                              VerticalAlignment="Center" Margin="2,1" FontSize="12" MinWidth="92"/>
+                    <CheckBox Style="{StaticResource BlockCheck}" IsChecked="{Binding Bold}" Content="B" FontWeight="Bold"/>
+                    <CheckBox Style="{StaticResource BlockCheck}" IsChecked="{Binding Italic}" Content="I" FontStyle="Italic"/>
+                </WrapPanel>
+                <TextBox Style="{StaticResource BlockInputWide}"
+                         Text="{Binding TextTemplate, UpdateSourceTrigger=PropertyChanged}"
+                         Margin="2,3,2,0"
+                         ToolTip="Paragraph text. {expressions} insert data, e.g. Dear {c.Contact},"/>
+                <!-- live preview rendered the way Word will style it -->
+                <Border Background="White" CornerRadius="4" Padding="10,5" Margin="2,4,2,0" MaxWidth="460"
+                        HorizontalAlignment="Left" BorderBrush="#22000000" BorderThickness="1">
+                    <TextBlock Text="{Binding TextTemplate}" TextWrapping="Wrap" Foreground="#333333"
+                               FontFamily="Calibri"
+                               FontSize="{Binding Style, Converter={StaticResource StyleFontSize}}">
+                        <TextBlock.FontWeight>
+                            <MultiBinding Converter="{StaticResource StyleWeight}">
+                                <Binding Path="Style"/>
+                                <Binding Path="Bold"/>
+                            </MultiBinding>
+                        </TextBlock.FontWeight>
+                        <TextBlock.FontStyle>
+                            <MultiBinding Converter="{StaticResource StyleItalic}">
+                                <Binding Path="Style"/>
+                                <Binding Path="Italic"/>
+                            </MultiBinding>
+                        </TextBlock.FontStyle>
+                    </TextBlock>
+                </Border>
+            </StackPanel>
+        </controls:BlockChrome>
+    </DataTemplate>
+
+    <DataTemplate DataType="{x:Type b:WordFragmentBlock}">
+        <controls:BlockChrome BlockBrush="{StaticResource DocumentBrush}"
+                              BlockBorderBrush="{StaticResource DocumentBorderBrush}">
+            <StackPanel>
+                <WrapPanel>
+                    <TextBlock Style="{StaticResource BlockLabel}" Text="🅦 Word paragraphs"/>
+                    <TextBox Style="{StaticResource BlockInput}" MinWidth="190"
+                             Text="{Binding FragmentFile, UpdateSourceTrigger=PropertyChanged}"
+                             ToolTip="The .docx holding this fragment, relative to the program file. Point two blocks at the same file to reuse it."/>
+                    <Button Content="✏ Edit in Word" Margin="6,0,0,0" Padding="8,2" FontSize="12"
+                            Command="{Binding DataContext.EditFragmentCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                            CommandParameter="{Binding}"
+                            ToolTip="Opens this fragment's document in Microsoft Word for direct editing"/>
+                    <Button Content="⟳" Margin="3,0,0,0" Padding="7,2" FontSize="12"
+                            Command="{Binding DataContext.RefreshFragmentCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                            CommandParameter="{Binding}"
+                            ToolTip="Re-read the file — use after editing the .docx directly in Word"/>
+                </WrapPanel>
+                <!-- the fragment exactly as Word renders it -->
+                <Border Background="White" CornerRadius="4" Padding="8" Margin="2,5,2,0"
+                        HorizontalAlignment="Left" BorderBrush="#22000000" BorderThickness="1">
+                    <StackPanel>
+                        <Image Source="{Binding PreviewImage, Converter={StaticResource BytesToImage}}"
+                               MaxWidth="440" Stretch="Uniform" StretchDirection="DownOnly"
+                               HorizontalAlignment="Left" SnapsToDevicePixels="True"/>
+                        <TextBlock Foreground="#888" FontStyle="Italic" FontSize="12" TextWrapping="Wrap"
+                                   MaxWidth="420" HorizontalAlignment="Left"
+                                   Text="empty — click “Edit in Word” to write formatted paragraphs (use {expressions} for data)">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding HasContent}" Value="False">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                        <!-- content exists but Word has not rendered a preview yet -->
+                        <TextBlock Foreground="#888" FontStyle="Italic" FontSize="12" TextWrapping="Wrap"
+                                   MaxWidth="420" HorizontalAlignment="Left"
+                                   Text="{Binding PlainText}">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <MultiDataTrigger>
+                                            <MultiDataTrigger.Conditions>
+                                                <Condition Binding="{Binding HasContent}" Value="True"/>
+                                                <Condition Binding="{Binding PreviewImage}" Value="{x:Null}"/>
+                                            </MultiDataTrigger.Conditions>
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </MultiDataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </controls:BlockChrome>
+    </DataTemplate>
+
+    <DataTemplate DataType="{x:Type b:TableBlock}">
+        <controls:BlockChrome BlockBrush="{StaticResource DocumentBrush}"
+                              BlockBorderBrush="{StaticResource DocumentBorderBrush}">
+            <StackPanel>
+                <WrapPanel>
+                    <TextBlock Style="{StaticResource BlockLabel}" Text="▦ add table from"/>
+                    <ComboBox Style="{StaticResource SourceCombo}"
+                              Text="{Binding SourceName, UpdateSourceTrigger=PropertyChanged}"/>
+                    <CheckBox Style="{StaticResource BlockCheck}" IsChecked="{Binding HeaderRow}" Content="header row"/>
+                </WrapPanel>
+                <WrapPanel>
+                    <TextBlock Style="{StaticResource BlockLabel}" Text="columns"/>
+                    <TextBox Style="{StaticResource BlockInputWide}"
+                             Text="{Binding ColumnsSpec, UpdateSourceTrigger=PropertyChanged}" MinWidth="320"
+                             ToolTip="Header: expression | Header: expression … (empty = all source columns)"/>
+                </WrapPanel>
+            </StackPanel>
+        </controls:BlockChrome>
+    </DataTemplate>
+
+    <DataTemplate DataType="{x:Type b:PageBreakBlock}">
+        <controls:BlockChrome BlockBrush="{StaticResource DocumentBrush}"
+                              BlockBorderBrush="{StaticResource DocumentBorderBrush}">
+            <TextBlock Style="{StaticResource BlockLabel}" Text="⤓ page break — — — — — — — —"/>
+        </controls:BlockChrome>
+    </DataTemplate>
+
+</ResourceDictionary>

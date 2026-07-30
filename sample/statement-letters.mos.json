@@ -5,18 +5,14 @@
     {
       "$type": "csvSource",
       "FilePath": "customers.csv",
-      "DisplayName": "open CSV data source",
       "Name": "customers",
-      "Category": 0,
-      "Id": "11ac66207e8546878fb20044c3fb52f8"
+      "Id": "f41c6fb2a7e2466aadba1ad9dca56e31"
     },
     {
       "$type": "csvSource",
       "FilePath": "orders.csv",
-      "DisplayName": "open CSV data source",
       "Name": "orders",
-      "Category": 0,
-      "Id": "2a27e18969cc41d28b5a0240c16d06f9"
+      "Id": "3fe1f81d4dc1402bb82ea522623ed87d"
     },
     {
       "$type": "forEach",
@@ -27,10 +23,8 @@
           "$type": "filterSource",
           "SourceName": "orders",
           "Condition": "CustomerId = c.Id",
-          "DisplayName": "filter data source",
           "Name": "custOrders",
-          "Category": 0,
-          "Id": "cbfd10bfda3b4c87802185896c21a050"
+          "Id": "9f722e28a09b4a55ac9223c0cca8db72"
         },
         {
           "$type": "newDocument",
@@ -43,9 +37,7 @@
               "Style": "Title",
               "Bold": false,
               "Italic": false,
-              "DisplayName": "add paragraph",
-              "Category": 3,
-              "Id": "1d22b1c9dd6c43ea8ca6781cc18dbf76"
+              "Id": "f4ef8e4cdf724b26b80d7fea625cd78d"
             },
             {
               "$type": "paragraph",
@@ -53,9 +45,7 @@
               "Style": "Heading 1",
               "Bold": false,
               "Italic": false,
-              "DisplayName": "add paragraph",
-              "Category": 3,
-              "Id": "27c5a17cf99f451daf4ca11618ce8c0a"
+              "Id": "c1380913996e456c8b8cde49946a9e83"
             },
             {
               "$type": "paragraph",
@@ -63,9 +53,7 @@
               "Style": "Normal",
               "Bold": false,
               "Italic": false,
-              "DisplayName": "add paragraph",
-              "Category": 3,
-              "Id": "9077a11f587f4580b1bd0bf96e4f36b8"
+              "Id": "579a0c390cf94a339af0f8fb69fc5b23"
             },
             {
               "$type": "paragraph",
@@ -73,9 +61,7 @@
               "Style": "Normal",
               "Bold": false,
               "Italic": false,
-              "DisplayName": "add paragraph",
-              "Category": 3,
-              "Id": "d9181f9298d64927bd568d5fb7d000e6"
+              "Id": "432c252632e944cebc7abae0d30a6220"
             },
             {
               "$type": "paragraph",
@@ -83,9 +69,7 @@
               "Style": "Normal",
               "Bold": false,
               "Italic": false,
-              "DisplayName": "add paragraph",
-              "Category": 3,
-              "Id": "6b01b875dec743b2bae5d66e3c0564ce"
+              "Id": "c0c253d080f9439a896deb07830b65c4"
             },
             {
               "$type": "if",
@@ -97,18 +81,14 @@
                   "Style": "Normal",
                   "Bold": false,
                   "Italic": false,
-                  "DisplayName": "add paragraph",
-                  "Category": 3,
-                  "Id": "7c9a4594586342b5a728c6bfdcfe1096"
+                  "Id": "4762e3ada51d47e5a205a7d9d116738f"
                 },
                 {
                   "$type": "table",
                   "SourceName": "custOrders",
                   "ColumnsSpec": "Date: FORMAT(Date, \u0022d\u0022) | Product: Product | Qty: Qty | Unit price: FORMAT(UnitPrice, \u0022C\u0022) | Total: FORMAT(Qty * UnitPrice, \u0022C\u0022)",
                   "HeaderRow": true,
-                  "DisplayName": "add table",
-                  "Category": 3,
-                  "Id": "d648173016ae43fbbe16bed19bcbc4ce"
+                  "Id": "8cd3e5ed98c5437683c88de63a966f5c"
                 },
                 {
                   "$type": "paragraph",
@@ -116,9 +96,7 @@
                   "Style": "Normal",
                   "Bold": true,
                   "Italic": false,
-                  "DisplayName": "add paragraph",
-                  "Category": 3,
-                  "Id": "ee94fc355afd48c9849b0ad581e8b04c"
+                  "Id": "3f462f1ec6834a9a9bd9156987300ced"
                 }
               ],
               "Else": [
@@ -128,14 +106,10 @@
                   "Style": "Normal",
                   "Bold": false,
                   "Italic": true,
-                  "DisplayName": "add paragraph",
-                  "Category": 3,
-                  "Id": "17f58fb552aa4b6b819dc45a0c80e6d3"
+                  "Id": "c31875e7330c46e6828dd9c573329b94"
                 }
               ],
-              "DisplayName": "if",
-              "Category": 1,
-              "Id": "bdcd126a0c6a4a97a843da000c4a7bd5"
+              "Id": "34be364dc23f4dc6a6ef7c4eab23b975"
             },
             {
               "$type": "if",
@@ -147,15 +121,11 @@
                   "Style": "Quote",
                   "Bold": false,
                   "Italic": false,
-                  "DisplayName": "add paragraph",
-                  "Category": 3,
-                  "Id": "33ce280946714035ae3b0599d1edcd29"
+                  "Id": "70916730b94f4ea6bae2751239016613"
                 }
               ],
               "Else": [],
-              "DisplayName": "if",
-              "Category": 1,
-              "Id": "8f413df13c6f4429aeb3e7b7c7f256d5"
+              "Id": "0bac610dc92743e9abd46517f7e0d258"
             },
             {
               "$type": "paragraph",
@@ -163,9 +133,7 @@
               "Style": "Normal",
               "Bold": false,
               "Italic": false,
-              "DisplayName": "add paragraph",
-              "Category": 3,
-              "Id": "8874282318024efda6d9c0ebf72e9df8"
+              "Id": "e79d49a675444214929bc7a9104048a3"
             },
             {
               "$type": "paragraph",
@@ -173,9 +141,7 @@
               "Style": "Normal",
               "Bold": false,
               "Italic": false,
-              "DisplayName": "add paragraph",
-              "Category": 3,
-              "Id": "2b9a9a3a7062492d9267f7576cc8bcad"
+              "Id": "b90e661de8b74da7859d0de2b0e7f2de"
             },
             {
               "$type": "paragraph",
@@ -183,19 +149,13 @@
               "Style": "Normal",
               "Bold": false,
               "Italic": true,
-              "DisplayName": "add paragraph",
-              "Category": 3,
-              "Id": "aabc1eab14544551812515f0525f45b1"
+              "Id": "8acd99fd83f0444097955aaa6a5cf1f6"
             }
           ],
-          "DisplayName": "new document",
-          "Category": 3,
-          "Id": "538a25ff61ab4daab9e1c068e7241965"
+          "Id": "fffd0b16f05148759fcdfc095bad69c6"
         }
       ],
-      "DisplayName": "for each record",
-      "Category": 1,
-      "Id": "add72dbd363a486f8105296aa5bc0616"
+      "Id": "2bff56d05b0c448495a10ecd2273da30"
     }
   ]
 }

@@ -1,7 +1,0 @@
-<Solution>
-  <Folder Name="/src/">
-    <Project Path="src/MailOnSteroids.App/MailOnSteroids.App.csproj" />
-    <Project Path="src/MailOnSteroids.Cli/MailOnSteroids.Cli.csproj" />
-    <Project Path="src/MailOnSteroids.Core/MailOnSteroids.Core.csproj" />
-  </Folder>
-</Solution>

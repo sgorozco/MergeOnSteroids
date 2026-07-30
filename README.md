@@ -1,4 +1,4 @@
-# Mail on Steroids
+# Merge on Steroids
 
 A Scratch-like visual language for generating highly dynamic Microsoft Word documents —
 mail merge on steroids.
@@ -13,18 +13,18 @@ structure your blocks describe).
 
 | Project | What it is |
 |---|---|
-| `src/MailOnSteroids.Core` | Block model, data source loaders, expression engine, interpreter, document writers (Word OLE + text preview). No UI dependencies. |
-| `src/MailOnSteroids.App` | WPF visual editor: block palette, drag & drop canvas, inline editing, live paragraph previews, run panel. |
-| `src/MailOnSteroids.Cli` | `mos` command-line runner: execute programs headlessly, generate the sample. |
+| `src/MergeOnSteroids.Core` | Block model, data source loaders, expression engine, interpreter, document writers (Word OLE + text preview). No UI dependencies. |
+| `src/MergeOnSteroids.App` | WPF visual editor: block palette, drag & drop canvas, inline editing, live paragraph previews, run panel. |
+| `src/MergeOnSteroids.Cli` | `mos` command-line runner: execute programs headlessly, generate the sample. |
 
 ## Quick start
 
 ```
 dotnet build
-dotnet run --project src/MailOnSteroids.App
+dotnet run --project src/MergeOnSteroids.App
 ```
 
-Click **Load sample** — it creates `Documents\MailOnSteroids\Sample` with two CSVs and a
+Click **Load sample** — it creates `Documents\MergeOnSteroids\Sample` with two CSVs and a
 program that produces one account-statement letter per customer, including a filtered
 order table, computed totals, and conditional paragraphs.
 
