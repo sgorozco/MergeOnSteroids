@@ -52,6 +52,7 @@ Programs are JSON files (`*.mos.json`) — friendly to source control.
 | Variables (orange) | set variable | Store a computed value under a name. |
 | Document (blue) | new document | Starts a Word document, saved when the block finishes. Place inside a loop for one document per record. Supports an optional `.dotx` template. |
 | | add paragraph | Styled paragraph (Normal, Heading 1–3, Title, Subtitle, Quote, List Bullet + bold/italic). Text supports `{expressions}`. The block shows a live preview styled the way Word will render it. |
+| | Word paragraphs (rich) | **Real Word content embedded in the block.** Click *Edit in Word* — the fragment opens in Microsoft Word where you write and format freely (styles, colors, bullets, anything). On save the block stores the formatted content (Flat OPC XML) plus a preview image rendered by Word itself. At run time the fragment is inserted with full fidelity and `{expressions}` in its text are substituted via Word find/replace, inheriting the surrounding formatting. Try `mos richsample` for a generated demo. |
 | | add table | Table filled from a data source with computed columns: `Header: expression \| Header: expression` (empty = all columns). |
 | | page break | What it says. |
 

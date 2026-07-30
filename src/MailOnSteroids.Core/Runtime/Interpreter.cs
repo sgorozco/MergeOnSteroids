@@ -89,6 +89,7 @@ public sealed class Interpreter
             case SetVariableBlock b: ExecuteSetVariable(b); break;
             case NewDocumentBlock b: ExecuteNewDocument(b); break;
             case ParagraphBlock b: ExecuteParagraph(b); break;
+            case WordFragmentBlock b: ExecuteWordFragment(b); break;
             case TableBlock b: ExecuteTable(b); break;
             case PageBreakBlock: _writer.PageBreak(); break;
             default:
@@ -208,6 +209,41 @@ public sealed class Interpreter
     {
         var text = Interpolate(b.TextTemplate);
         _writer.AddParagraph(text, b.Style, b.Bold, b.Italic);
+    }
+
+    private void ExecuteWordFragment(WordFragmentBlock b)
+    {
+        if (!b.HasContent)
+        {
+            Warn("A 'Word paragraphs' block has no content yet (use 'Edit in Word') — skipped.");
+            return;
+        }
+
+        var plainText = string.IsNullOrEmpty(b.PlainText)
+            ? Interop.WordFragmentText.Extract(b.FragmentXml)
+            : b.PlainText;
+
+        // Evaluate each {placeholder} found in the fragment's text; the raw
+        // placeholder (exactly as it appears in the document, smart quotes and
+        // all) becomes the literal find-text for substitution.
+        var replacements = new List<KeyValuePair<string, string>>();
+        foreach (var (expression, raw) in TemplateEngine.ExtractPlaceholders(plainText)
+                     .DistinctBy(p => p.RawPlaceholder))
+        {
+            string value;
+            try
+            {
+                value = Values.ToDisplayString(_compiler.Compile(expression).Eval(_ctx));
+            }
+            catch (MosExpressionException ex)
+            {
+                value = "{!" + ex.Message + "}";
+                Warn($"In '{raw}': {ex.Message}");
+            }
+            replacements.Add(new KeyValuePair<string, string>(raw, value));
+        }
+
+        _writer.AddFragment(b.FragmentXml, plainText, replacements);
     }
 
     private void ExecuteTable(TableBlock b)

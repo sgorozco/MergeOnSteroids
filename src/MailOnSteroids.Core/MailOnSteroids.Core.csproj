@@ -13,6 +13,8 @@
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.10" />
     <!-- Pin transitive SQLitePCLRaw above the version flagged by NU1903 -->
     <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="2.1.12" />
+    <!-- EMF → PNG conversion for Word-rendered fragment previews -->
+    <PackageReference Include="System.Drawing.Common" Version="10.0.0" />
   </ItemGroup>
 
 </Project>

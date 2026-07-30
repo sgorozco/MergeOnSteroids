@@ -73,6 +73,63 @@ public sealed class WordComWriter : IDocumentWriter
         ReleaseCom(range);
     }
 
+    public void AddFragment(string fragmentXml, string plainText,
+        IReadOnlyList<KeyValuePair<string, string>> replacements)
+    {
+        var doc = RequireDoc();
+        if (string.IsNullOrWhiteSpace(fragmentXml)) return;
+
+        // Remember where the fragment starts so substitution stays inside it.
+        dynamic insertAt = doc.Bookmarks["\\endofdoc"].Range;
+        int start = (int)insertAt.Start;
+        insertAt.InsertXML(fragmentXml);
+        ReleaseCom(insertAt);
+
+        foreach (var (find, replace) in replacements)
+            ReplaceInRange(doc, start, find, replace);
+
+        // The captured fragment has no final paragraph mark (trimmed at capture),
+        // so terminate its last paragraph; otherwise the next block's content
+        // would merge into it.
+        dynamic after = doc.Bookmarks["\\endofdoc"].Range;
+        after.InsertParagraphAfter();
+        ReleaseCom(after);
+    }
+
+    /// <summary>
+    /// Literal find→replace from <paramref name="start"/> to the end of the document.
+    /// Word's Find spans formatting runs, so placeholders keep working even when
+    /// Word split them into multiple runs; replacements inherit local formatting.
+    /// </summary>
+    private static void ReplaceInRange(dynamic doc, int start, string find, string replace)
+    {
+        if (string.IsNullOrEmpty(find) || find.Length > 255) return; // Word Find limit
+
+        while (true)
+        {
+            dynamic search = doc.Range(start, doc.Content.End);
+            dynamic finder = search.Find;
+            finder.ClearFormatting();
+            finder.Forward = true;
+            finder.Wrap = 0; // wdFindStop
+            finder.MatchCase = true;
+            finder.MatchWildcards = false;
+            bool found = finder.Execute(find);
+            if (!found)
+            {
+                ReleaseCom(finder);
+                ReleaseCom(search);
+                break;
+            }
+            // After a successful Execute the range is the found text; assigning
+            // Text replaces it (no length limits, unlike Find's ReplaceWith).
+            search.Text = replace;
+            start = (int)search.End;
+            ReleaseCom(finder);
+            ReleaseCom(search);
+        }
+    }
+
     public void AddTable(IReadOnlyList<string> headers, IReadOnlyList<string[]> rows, bool headerRow)
     {
         var doc = RequireDoc();

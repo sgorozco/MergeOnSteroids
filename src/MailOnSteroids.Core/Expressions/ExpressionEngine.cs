@@ -39,7 +39,12 @@ public sealed class ExpressionCompiler
         if (string.IsNullOrWhiteSpace(expression))
             throw new MosExpressionException("Empty expression.");
         if (_cache.TryGetValue(expression, out var cached)) return cached;
-        var node = new Parser(expression).ParseFull();
+        // Word autocorrect turns straight quotes into curly ones while typing
+        // inside a document — accept both.
+        var normalized = expression
+            .Replace('“', '"').Replace('”', '"')
+            .Replace('‘', '\'').Replace('’', '\'');
+        var node = new Parser(normalized).ParseFull();
         _cache[expression] = node;
         return node;
     }
@@ -687,18 +692,48 @@ public static class TemplateEngine
         return sb.ToString();
     }
 
+    /// <summary>
+    /// All {expression} placeholders in a text, in order (inner expression without braces).
+    /// Same scanning rules as Interpolate, including "{{" escapes and quote awareness.
+    /// </summary>
+    public static List<(string Expression, string RawPlaceholder)> ExtractPlaceholders(string text)
+    {
+        var result = new List<(string, string)>();
+        if (string.IsNullOrEmpty(text)) return result;
+        for (var i = 0; i < text.Length; i++)
+        {
+            if (text[i] != '{') continue;
+            if (i + 1 < text.Length && text[i + 1] == '{') { i++; continue; }
+            var end = FindClosingBrace(text, i + 1);
+            if (end < 0) break;
+            result.Add((text[(i + 1)..end], text[i..(end + 1)]));
+            i = end;
+        }
+        return result;
+    }
+
     private static int FindClosingBrace(string s, int start)
     {
-        char? quote = null;
+        // Track the expected closing quote so '}' inside string literals is skipped.
+        // Word smart quotes pair “ with ” and ‘ with ’.
+        char? closer = null;
         for (var i = start; i < s.Length; i++)
         {
             var c = s[i];
-            if (quote is { } q)
+            if (closer is { } q)
             {
-                if (c == q) quote = null;
+                if (c == q) closer = null;
             }
-            else if (c is '"' or '\'') quote = c;
-            else if (c == '}') return i;
+            else
+            {
+                switch (c)
+                {
+                    case '"' or '\'': closer = c; break;
+                    case '“': closer = '”'; break;
+                    case '‘': closer = '’'; break;
+                    case '}': return i;
+                }
+            }
         }
         return -1;
     }

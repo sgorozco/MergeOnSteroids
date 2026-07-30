@@ -39,6 +39,16 @@ internal static class Program
                     return 0;
                 }
 
+            case "richsample":
+                {
+                    var folder = args.Length > 1 ? args[1] : Path.Combine(Environment.CurrentDirectory, "rich-sample");
+                    Console.WriteLine("Authoring a formatted fragment through Word…");
+                    var path = SampleFactory.CreateRichSample(folder);
+                    Console.WriteLine($"Rich sample created: {path}");
+                    Console.WriteLine($"Try: mos run \"{path}\" --word");
+                    return 0;
+                }
+
             case "run":
                 {
                     if (args.Length < 2)
@@ -85,6 +95,7 @@ internal static class Program
 
             Usage:
               mos sample [folder]                    Create sample data + program
+              mos richsample [folder]                Create sample using a Word-authored rich fragment (needs Word)
               mos run <program.mos.json> [options]   Execute a program
 
             Options for run:

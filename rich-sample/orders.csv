@@ -1,0 +1,8 @@
+﻿OrderId,CustomerId,Date,Product,Qty,UnitPrice
+1001,1,2026-06-03,Steel brackets,120,18.50
+1002,1,2026-06-17,Hex bolts M8,500,0.85
+1003,2,2026-06-21,Paint 20L,12,64.00
+1004,4,2026-07-02,Conveyor belt,3,2999.99
+1005,4,2026-07-08,Roller set,40,155.25
+1006,1,2026-07-15,Angle grinder,6,899.00
+1007,4,2026-07-20,Safety kit,25,210.00

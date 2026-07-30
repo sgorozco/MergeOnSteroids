@@ -186,6 +186,38 @@ public sealed class ParagraphBlock : Block
 }
 
 /// <summary>
+/// A fragment of real Word content, authored and formatted directly in Word.
+/// Stored as Flat OPC WordprocessingML (captured via Range.WordOpenXML) plus a
+/// PNG preview rendered by Word itself. At run time the fragment is inserted
+/// into the output document and {expressions} in its text are substituted,
+/// keeping every bit of Word formatting.
+/// </summary>
+public sealed class WordFragmentBlock : Block
+{
+    private string _fragmentXml = "";
+    private string _plainText = "";
+    private byte[]? _previewPng;
+
+    /// <summary>Flat OPC package XML of the fragment (empty = not authored yet).</summary>
+    public string FragmentXml
+    {
+        get => _fragmentXml;
+        set { if (Set(ref _fragmentXml, value)) Raise(nameof(HasContent)); }
+    }
+
+    /// <summary>Plain text of the fragment (captured with the XML; used for previews and placeholder scanning).</summary>
+    public string PlainText { get => _plainText; set => Set(ref _plainText, value); }
+
+    /// <summary>PNG image of the fragment as rendered by Word (shown inside the block).</summary>
+    public byte[]? PreviewPng { get => _previewPng; set => Set(ref _previewPng, value); }
+
+    [JsonIgnore] public bool HasContent => !string.IsNullOrWhiteSpace(FragmentXml);
+
+    public override string DisplayName => "Word paragraphs";
+    public override BlockCategory Category => BlockCategory.Document;
+}
+
+/// <summary>
 /// Inserts a table filled from a data source. Columns spec syntax:
 ///   Header: expression | Header2: expression2 | ...
 /// Empty spec = one column per source field, raw values.

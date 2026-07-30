@@ -50,6 +50,9 @@ public sealed class MainViewModel : INotifyPropertyChanged
         OpenOutputFolderCommand = new RelayCommand(OpenOutputFolder);
         DeleteSelectedCommand = new RelayCommand(DeleteSelected, () => SelectedBlock is not null);
         ClearLogCommand = new RelayCommand(() => { _log.Clear(); OnPropertyChanged(nameof(LogText)); });
+        EditFragmentCommand = new ParamRelayCommand(
+            p => EditFragment(p as WordFragmentBlock),
+            p => !IsRunning && p is WordFragmentBlock);
 
         LoadProgram(new ProgramModel(), null);
     }
@@ -119,6 +122,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public RelayCommand OpenOutputFolderCommand { get; }
     public RelayCommand DeleteSelectedCommand { get; }
     public RelayCommand ClearLogCommand { get; }
+    public ParamRelayCommand EditFragmentCommand { get; }
 
     // -------------------------------------------------------- file handling
 
@@ -295,6 +299,57 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     // ---------------------------------------------------------------- editing
 
+    /// <summary>
+    /// The heart of the fragment experiment: open the fragment in a real Word
+    /// window, let the user edit there, capture the result back into the block
+    /// (formatted XML + Word-rendered preview image).
+    /// </summary>
+    private void EditFragment(WordFragmentBlock? block)
+    {
+        if (block is null) return;
+
+        Core.Interop.WordFragmentEditSession? session;
+        try
+        {
+            System.Windows.Input.Mouse.OverrideCursor = System.Windows.Input.Cursors.Wait;
+            session = Core.Interop.WordFragmentEditSession.Start(
+                block.HasContent ? block.FragmentXml : null);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Could not start Microsoft Word:\n{ex.Message}", "Mail on Steroids",
+                MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
+        }
+        finally
+        {
+            System.Windows.Input.Mouse.OverrideCursor = null;
+        }
+
+        try
+        {
+            var dialog = new Views.WordEditDialog { Owner = Application.Current.MainWindow };
+            if (dialog.ShowDialog() == true)
+            {
+                var capture = session.Capture();
+                block.FragmentXml = capture.Xml;
+                block.PlainText = capture.PlainText;
+                block.PreviewPng = capture.PreviewPng.Length > 0 ? capture.PreviewPng : null;
+                Log($"Fragment updated ({capture.PlainText.Split('\n').Length} paragraph(s)).");
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                $"Could not read the fragment back from Word (was the document closed?):\n{ex.Message}",
+                "Mail on Steroids", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+        finally
+        {
+            try { session.Dispose(); } catch { /* Word may already be gone */ }
+        }
+    }
+
     private void DeleteSelected()
     {
         var block = SelectedBlock;
@@ -435,6 +490,9 @@ public sealed class MainViewModel : INotifyPropertyChanged
                 document, () => new NewDocumentBlock()),
             new("Document", "add paragraph", "Adds a paragraph. Use {expressions} to insert data.",
                 document, () => new ParagraphBlock { TextTemplate = "Text with {placeholders}" }),
+            new("Document", "Word paragraphs (rich)", "Formatted paragraphs authored directly in Word — " +
+                "styles, colors, bullets, everything. {expressions} in the text are substituted at run time.",
+                document, () => new WordFragmentBlock()),
             new("Document", "add table", "Adds a table filled from a data source.",
                 document, () => new TableBlock()),
             new("Document", "page break", "Inserts a page break.",

@@ -50,6 +50,16 @@ public sealed class PreviewWriter : IDocumentWriter
         d.AppendLine($"{prefix}{deco}{text}{decoClose}");
     }
 
+    public void AddFragment(string fragmentXml, string plainText,
+        IReadOnlyList<KeyValuePair<string, string>> replacements)
+    {
+        var d = RequireDoc();
+        var text = plainText ?? "";
+        foreach (var (find, replace) in replacements)
+            text = text.Replace(find, replace);
+        d.AppendLine(text);
+    }
+
     public void AddTable(IReadOnlyList<string> headers, IReadOnlyList<string[]> rows, bool headerRow)
     {
         var d = RequireDoc();

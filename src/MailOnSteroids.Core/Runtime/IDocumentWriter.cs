@@ -29,6 +29,13 @@ public interface IDocumentWriter : IDisposable
     void Begin(RunOptions options);
     void BeginDocument(string? templatePath);
     void AddParagraph(string text, string style, bool bold, bool italic);
+    /// <summary>
+    /// Inserts a formatted Word fragment (Flat OPC XML), then applies the given
+    /// literal find→replace substitutions inside the inserted content only.
+    /// <paramref name="plainText"/> is the fragment's text for non-Word writers.
+    /// </summary>
+    void AddFragment(string fragmentXml, string plainText,
+        IReadOnlyList<KeyValuePair<string, string>> replacements);
     void AddTable(IReadOnlyList<string> headers, IReadOnlyList<string[]> rows, bool headerRow);
     void PageBreak();
     /// <summary>Finish the current document. Returns the path it was saved to.</summary>

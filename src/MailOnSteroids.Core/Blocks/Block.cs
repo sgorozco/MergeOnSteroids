@@ -19,6 +19,7 @@ namespace MailOnSteroids.Core.Blocks;
 [JsonDerivedType(typeof(SetVariableBlock), "setVariable")]
 [JsonDerivedType(typeof(NewDocumentBlock), "newDocument")]
 [JsonDerivedType(typeof(ParagraphBlock), "paragraph")]
+[JsonDerivedType(typeof(WordFragmentBlock), "wordFragment")]
 [JsonDerivedType(typeof(TableBlock), "table")]
 [JsonDerivedType(typeof(PageBreakBlock), "pageBreak")]
 public abstract class Block : INotifyPropertyChanged
@@ -41,6 +42,9 @@ public abstract class Block : INotifyPropertyChanged
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
         return true;
     }
+
+    protected void Raise(string propertyName) =>
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
 
     /// <summary>All child collections (containers override).</summary>
     public virtual IEnumerable<BlockCollection> ChildLists() => [];

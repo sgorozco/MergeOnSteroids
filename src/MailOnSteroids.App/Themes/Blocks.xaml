@@ -17,6 +17,7 @@
     <common:StyleFontSizeConverter x:Key="StyleFontSize"/>
     <common:StyleWeightConverter x:Key="StyleWeight"/>
     <common:StyleItalicConverter x:Key="StyleItalic"/>
+    <common:BytesToImageConverter x:Key="BytesToImage"/>
 
     <!-- ============================== small shared styles ============================== -->
 
@@ -365,6 +366,43 @@
                             </MultiBinding>
                         </TextBlock.FontStyle>
                     </TextBlock>
+                </Border>
+            </StackPanel>
+        </controls:BlockChrome>
+    </DataTemplate>
+
+    <DataTemplate DataType="{x:Type b:WordFragmentBlock}">
+        <controls:BlockChrome BlockBrush="{StaticResource DocumentBrush}"
+                              BlockBorderBrush="{StaticResource DocumentBorderBrush}">
+            <StackPanel>
+                <WrapPanel>
+                    <TextBlock Style="{StaticResource BlockLabel}" Text="🅦 Word paragraphs"/>
+                    <Button Content="✏ Edit in Word" Margin="8,0,0,0" Padding="8,2" FontSize="12"
+                            Command="{Binding DataContext.EditFragmentCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                            CommandParameter="{Binding}"
+                            ToolTip="Opens this fragment in Microsoft Word for direct editing"/>
+                </WrapPanel>
+                <!-- the fragment exactly as Word renders it -->
+                <Border Background="White" CornerRadius="4" Padding="8" Margin="2,5,2,0"
+                        HorizontalAlignment="Left" BorderBrush="#22000000" BorderThickness="1">
+                    <StackPanel>
+                        <Image Source="{Binding PreviewPng, Converter={StaticResource BytesToImage}}"
+                               MaxWidth="440" Stretch="Uniform" StretchDirection="DownOnly"
+                               HorizontalAlignment="Left" SnapsToDevicePixels="True"/>
+                        <TextBlock Foreground="#888" FontStyle="Italic" FontSize="12"
+                                   Text="empty — click “Edit in Word” to write formatted paragraphs (use {expressions} for data)">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding HasContent}" Value="False">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </StackPanel>
                 </Border>
             </StackPanel>
         </controls:BlockChrome>
