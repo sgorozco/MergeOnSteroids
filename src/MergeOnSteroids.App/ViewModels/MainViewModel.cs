@@ -28,10 +28,11 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private readonly StringBuilder _log = new();
     private CancellationTokenSource? _runCts;
 
-    // File sources re-read their columns shortly after the path/sheet/header row changes.
+    // File sources re-read their columns shortly after the path/sheet/header row
+    // changes; database sources only when asked, since that means talking to a server.
     private readonly DispatcherTimer _schemaTimer;
     private readonly List<FileSourceBlockBase> _schemaQueue = [];
-    private readonly HashSet<FileSourceBlockBase> _schemaReading = [];
+    private readonly HashSet<SourceBlockBase> _schemaReading = [];
 
     private ProgramModel _program = new();
     private string? _currentFilePath;
@@ -67,8 +68,9 @@ public sealed class MainViewModel : INotifyPropertyChanged
             p => !IsRunning && p is WordFragmentBlock { FragmentFile.Length: > 0 });
         ToggleThemeCommand = new RelayCommand(ThemeManager.Toggle);
         ReadSchemaCommand = new ParamRelayCommand(
-            p => _ = ReadSchemaAsync(p as FileSourceBlockBase),
-            p => p is FileSourceBlockBase { FilePath.Length: > 0 });
+            p => _ = ReadSchemaAsync(p as SourceBlockBase),
+            p => p is FileSourceBlockBase { FilePath.Length: > 0 }
+                or DatabaseSourceBlock { ConnectionString.Length: > 0, Query.Length: > 0 });
         InsertColumnCommand = new ParamRelayCommand(p => InsertColumnReference(p as SourceColumnInfo));
 
         ThemeManager.ThemeChanged += OnThemeChanged;
@@ -327,9 +329,9 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private static bool IsDesignTimeProperty(string? name) => name is
         nameof(WordFragmentBlock.PlainText) or
         nameof(WordFragmentBlock.PreviewImage) or
-        nameof(FileSourceBlockBase.DetectedColumns) or
-        nameof(FileSourceBlockBase.HasDetectedColumns) or
-        nameof(FileSourceBlockBase.SchemaStatus) or
+        nameof(SourceBlockBase.DetectedColumns) or
+        nameof(SourceBlockBase.HasDetectedColumns) or
+        nameof(SourceBlockBase.SchemaStatus) or
         nameof(ExcelSourceBlock.DetectedSheets);
 
     private void RefreshSources()
@@ -499,43 +501,27 @@ public sealed class MainViewModel : INotifyPropertyChanged
     }
 
     /// <summary>
-    /// Reads the column names (and, for a workbook, the sheet names) out of the file
-    /// a block points at, so the block can show them. Runs off the UI thread — data
-    /// files can be big.
+    /// Reads the columns a source produces — out of the file for CSV and Excel, out
+    /// of the query's result schema for a database — so the block can show them.
+    /// The read itself runs off the UI thread: files can be big and servers slow.
     /// </summary>
-    private async Task ReadSchemaAsync(FileSourceBlockBase? block)
+    private async Task ReadSchemaAsync(SourceBlockBase? block)
     {
         if (block is null || !_schemaReading.Add(block)) return;
         try
         {
-            if (string.IsNullOrWhiteSpace(block.FilePath))
-            {
-                SetSchema(block, null, "");
-                return;
-            }
+            var read = PrepareRead(block);
+            if (read is null) return;
 
-            var path = Path.GetFullPath(Path.Combine(RunBaseFolder, block.FilePath.Trim()));
-            if (!File.Exists(path))
-            {
-                SetSchema(block, null, CurrentFilePath is null && !Path.IsPathRooted(block.FilePath)
-                    ? "save the program next to the data file, or use a full path"
-                    : $"file not found: {path}");
-                return;
-            }
-
-            var headerRow = block.HeaderRow;
-            var sheetName = (block as ExcelSourceBlock)?.SheetName ?? "";
-            var isExcel = block is ExcelSourceBlock;
+            block.SchemaStatus = "reading…";
             try
             {
-                var schema = await Task.Run(() => isExcel
-                    ? DataSourceLoaders.PeekExcel(path, sheetName, headerRow)
-                    : DataSourceLoaders.PeekCsv(path, headerRow));
+                var schema = await Task.Run(read);
                 SetSchema(block, schema, schema.Summary);
             }
             catch (Exception ex)
             {
-                SetSchema(block, null, ex.Message);
+                SetSchema(block, null, FirstLine(ex.Message));
             }
         }
         finally
@@ -544,11 +530,65 @@ public sealed class MainViewModel : INotifyPropertyChanged
         }
     }
 
-    private static void SetSchema(FileSourceBlockBase block, SourceSchema? schema, string status)
+    /// <summary>
+    /// Everything the read needs, captured on the UI thread. Null when there is
+    /// nothing to read yet — the block says why.
+    /// </summary>
+    private Func<SourceSchema>? PrepareRead(SourceBlockBase block)
+    {
+        switch (block)
+        {
+            case FileSourceBlockBase file:
+                {
+                    if (string.IsNullOrWhiteSpace(file.FilePath))
+                    {
+                        SetSchema(file, null, "");
+                        return null;
+                    }
+
+                    var path = Path.GetFullPath(Path.Combine(RunBaseFolder, file.FilePath.Trim()));
+                    if (!File.Exists(path))
+                    {
+                        SetSchema(file, null, CurrentFilePath is null && !Path.IsPathRooted(file.FilePath)
+                            ? "save the program next to the data file, or use a full path"
+                            : $"file not found: {path}");
+                        return null;
+                    }
+
+                    var headerRow = file.HeaderRow;
+                    if (file is ExcelSourceBlock excel)
+                    {
+                        var sheetName = excel.SheetName;
+                        return () => DataSourceLoaders.PeekExcel(path, sheetName, headerRow);
+                    }
+                    return () => DataSourceLoaders.PeekCsv(path, headerRow);
+                }
+
+            case DatabaseSourceBlock db:
+                {
+                    var provider = db.Provider;
+                    var connectionString = db.ConnectionString;
+                    var query = db.Query;
+                    return () => DataSourceLoaders.PeekDatabase(provider, connectionString, query);
+                }
+
+            default:
+                return null;
+        }
+    }
+
+    private static void SetSchema(SourceBlockBase block, SourceSchema? schema, string status)
     {
         block.DetectedColumns = schema?.Columns ?? [];
         if (schema is not null && block is ExcelSourceBlock excel) excel.DetectedSheets = schema.SheetNames;
         block.SchemaStatus = status;
+    }
+
+    /// <summary>Database errors are paragraphs; the block only has room for the gist.</summary>
+    private static string FirstLine(string message)
+    {
+        var line = message.Split('\n')[0].Trim();
+        return line.Length > 200 ? line[..200] + "…" : line;
     }
 
     /// <summary>Drops a column reference into whichever block input was last used.</summary>
@@ -694,7 +734,9 @@ public sealed class MainViewModel : INotifyPropertyChanged
                 "Say which row holds the column names, and the block lists the columns it found — " +
                 "click one to use it in the input you are typing in.",
                 data, () => new ExcelSourceBlock { Name = "source1" }),
-            new("Data sources", "open database query", "Runs a SQL query (SQL Server or SQLite) as a named data source.",
+            new("Data sources", "open database query", "Runs a SQL query (SQL Server or SQLite) as a named data source. " +
+                "Press ⟳ and the block lists the columns the query returns — " +
+                "click one to use it in the input you are typing in.",
                 data, () => new DatabaseSourceBlock { Name = "source1" }),
             new("Data sources", "filter data source", "New source with only the rows matching a condition — " +
                 "use it inside a loop to get the records related to the current one.",

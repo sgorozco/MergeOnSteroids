@@ -196,8 +196,18 @@
                                 <Button.ToolTip>
                                     <StackPanel>
                                         <TextBlock FontWeight="SemiBold" Text="{Binding Reference}"/>
-                                        <TextBlock Text="{Binding SampleText, StringFormat='first value: {0}'}"
-                                                   Foreground="{DynamicResource MutedForegroundBrush}"/>
+                                        <TextBlock Text="{Binding Hint}"
+                                                   Foreground="{DynamicResource MutedForegroundBrush}">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding Hint}" Value="{x:Null}">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
                                         <TextBlock Text="click to insert it where you were typing"
                                                    Foreground="{DynamicResource MutedForegroundBrush}"
                                                    FontStyle="Italic" Margin="0,3,0,0"/>
@@ -301,7 +311,14 @@
                     <TextBox Style="{StaticResource BlockInputWide}" common:InputFocus.Kind="Template"
                              Text="{Binding Query, UpdateSourceTrigger=PropertyChanged}" MinWidth="320"
                              ToolTip="SQL query. {expressions} are interpolated from the current record."/>
+                    <Button Content="⟳" Margin="4,0,0,0" Padding="7,2" FontSize="12"
+                            VerticalAlignment="Top"
+                            Command="{Binding DataContext.ReadSchemaCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                            CommandParameter="{Binding}"
+                            ToolTip="Ask the database which columns this query returns.&#10;Reads the result schema only — no rows are fetched, and {expressions} count as NULL."/>
                 </WrapPanel>
+                <ContentControl Content="{Binding}" Focusable="False"
+                                ContentTemplate="{StaticResource SourceColumnsTemplate}"/>
             </StackPanel>
         </controls:BlockChrome>
     </DataTemplate>

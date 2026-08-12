@@ -1,7 +1,7 @@
 namespace MergeOnSteroids.Core.Data;
 
-/// <summary>One column of a file data source, as the editor shows it on the block.</summary>
-public sealed record SourceColumnInfo(string Name, string? SampleText)
+/// <summary>One column of a data source, as the editor shows it on the block.</summary>
+public sealed record SourceColumnInfo(string Name, string? Hint)
 {
     /// <summary>
     /// How this column is written inside an expression: bare when the name is a
@@ -23,21 +23,24 @@ public sealed record SourceColumnInfo(string Name, string? SampleText)
 }
 
 /// <summary>
-/// What a data file looks like, read without loading it into a table: the editor
+/// What a data source looks like, read without loading it into a table: the editor
 /// uses it to show the column names (and, for a workbook, the sheet list) on the block.
 /// </summary>
 public sealed record SourceSchema
 {
-    /// <summary>Worksheet name, or the file name for a CSV.</summary>
+    /// <summary>Worksheet name, file name, or database provider.</summary>
     public required string Label { get; init; }
 
     public required IReadOnlyList<SourceColumnInfo> Columns { get; init; }
 
-    /// <summary>The row the column names actually came from; 0 when there is no header row.</summary>
-    public required int HeaderRow { get; init; }
+    /// <summary>
+    /// The row the column names actually came from, 0 when the file has no header
+    /// row, and null where the idea does not apply (a database query).
+    /// </summary>
+    public int? HeaderRow { get; init; }
 
-    /// <summary>Data rows, or -1 when the file was too big to count during a peek.</summary>
-    public required int RowCount { get; init; }
+    /// <summary>Data rows, or null when they were not counted.</summary>
+    public int? RowCount { get; init; }
 
     /// <summary>Sheet names of the workbook — empty for sources that have no sheets.</summary>
     public IReadOnlyList<string> SheetNames { get; init; } = [];
@@ -50,10 +53,11 @@ public sealed record SourceSchema
     {
         get
         {
-            var rows = RowCount < 0 ? "many rows" : Plural(RowCount, "row");
-            var text = $"{Label} — {Plural(Columns.Count, "column")}, {rows}" +
-                       (HeaderRow > 0 ? $", headers in row {HeaderRow}" : ", no header row");
-            return Note is { Length: > 0 } ? $"{text}, {Note}" : text;
+            var parts = new List<string> { Plural(Columns.Count, "column") };
+            if (RowCount is { } rows) parts.Add(Plural(rows, "row"));
+            if (HeaderRow is { } header) parts.Add(header > 0 ? $"headers in row {header}" : "no header row");
+            if (Note is { Length: > 0 }) parts.Add(Note);
+            return $"{Label} — {string.Join(", ", parts)}";
         }
     }
 

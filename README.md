@@ -46,7 +46,8 @@ Programs are JSON files (`*.mos.json`) — friendly to source control.
 | Category | Block | Purpose |
 |---|---|---|
 | Data sources (green) | open CSV / open Excel / open database | Load a named data source (whole table in memory). Database queries support `{expression}` interpolation, so a query can be driven by the current record. |
-| | ↳ open CSV / open Excel | Say which row holds the column names — report titles and blank rows above it are skipped (`0` = no header row, columns are then `A`, `B`, `C`…). Excel also picks the sheet from the workbook's own list; CSV detects comma, semicolon and tab separators. Both blocks read the file as you type and list the columns they found: click one to drop its reference into the input you were last typing in (with `{braces}` where that field is a text template). |
+| | ↳ every source block | Lists the columns it found, and clicking one drops its reference into the input you were last typing in (with `{braces}` where that field is a text template). CSV and Excel re-read the file as you type; the database block reads on ⟳ only, and asks for the query's **result schema** — no rows are fetched and `{expressions}` count as `NULL`, so it is safe to press against a live table. |
+| | ↳ open CSV / open Excel | Say which row holds the column names — report titles and blank rows above it are skipped (`0` = no header row, columns are then `A`, `B`, `C`…). Excel also picks the sheet from the workbook's own list; CSV detects comma, semicolon and tab separators. |
 | | filter data source | New source containing only rows matching a condition, e.g. `CustomerId = c.Id` — the way to get "the orders of the current customer". |
 | Control (gold) | for each record | Loops its contents once per record; the record is available under an alias (`c` → `c.Name`). |
 | | if / else | Conditional content — paragraphs, tables, even whole documents. |

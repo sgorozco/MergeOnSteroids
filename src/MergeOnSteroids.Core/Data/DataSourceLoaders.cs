@@ -1,7 +1,9 @@
+using System.Data;
 using System.Data.Common;
 using System.Globalization;
 using System.Text;
 using ClosedXML.Excel;
+using MergeOnSteroids.Core.Expressions;
 using Microsoft.Data.SqlClient;
 using Microsoft.Data.Sqlite;
 
@@ -50,25 +52,25 @@ public static class DataSourceLoaders
         var sample = records.Skip(layout.FirstDataRecord).FirstOrDefault(r => !IsBlank(r));
         var columns = layout.Headers
             .Select((h, i) => new SourceColumnInfo(
-                h, sample is not null && i < sample.Count && sample[i].Trim() is { Length: > 0 } s ? s : null))
+                h, sample is not null && i < sample.Count && sample[i].Trim() is { Length: > 0 } s
+                    ? $"first value: {s}"
+                    : null))
             .ToList();
 
-        var rowCount = complete
-            ? records.Skip(layout.FirstDataRecord).Count(r => !IsBlank(r))
-            : -1;
+        var separator = delimiter switch
+        {
+            '\t' => "tab separated",
+            ';' => "semicolon separated",
+            _ => "comma separated"
+        };
 
         return new SourceSchema
         {
             Label = Path.GetFileName(path),
             Columns = columns,
             HeaderRow = layout.HeaderRow,
-            RowCount = rowCount,
-            Note = delimiter switch
-            {
-                '\t' => "tab separated",
-                ';' => "semicolon separated",
-                _ => "comma separated"
-            }
+            RowCount = complete ? records.Skip(layout.FirstDataRecord).Count(r => !IsBlank(r)) : null,
+            Note = complete ? separator : $"{separator}, first {peekLimit / (1024 * 1024)} MB scanned"
         };
     }
 
@@ -279,7 +281,8 @@ public static class DataSourceLoaders
             var sample = layout.FirstDataRow <= layout.LastRow
                 ? sheet.Cell(layout.FirstDataRow, layout.FirstColumn + c).GetFormattedString()
                 : null;
-            columns.Add(new SourceColumnInfo(layout.Headers[c], string.IsNullOrWhiteSpace(sample) ? null : sample));
+            columns.Add(new SourceColumnInfo(
+                layout.Headers[c], string.IsNullOrWhiteSpace(sample) ? null : $"first value: {sample}"));
         }
 
         return new SourceSchema
@@ -355,13 +358,7 @@ public static class DataSourceLoaders
 
     public static DataTableLite LoadDatabase(string provider, string connectionString, string query, string name)
     {
-        using DbConnection connection = provider.Trim().ToLowerInvariant() switch
-        {
-            "sqlserver" or "mssql" or "sql" => new SqlConnection(connectionString),
-            "sqlite" => new SqliteConnection(connectionString),
-            _ => throw new InvalidOperationException(
-                $"Unknown database provider '{provider}'. Supported: SqlServer, Sqlite.")
-        };
+        using var connection = CreateConnection(provider, connectionString);
 
         connection.Open();
         using var command = connection.CreateCommand();
@@ -381,6 +378,89 @@ public static class DataSourceLoaders
             table.AddRow(row);
         }
         return table;
+    }
+
+    /// <summary>
+    /// Columns a query returns, asked of the database itself. Reads the result
+    /// schema only — no rows are fetched and the statement is not executed, so it
+    /// is safe (and quick) to ask about a query over a large or live table.
+    /// </summary>
+    public static SourceSchema PeekDatabase(
+        string provider, string connectionString, string query, int connectTimeoutSeconds = 5)
+    {
+        if (string.IsNullOrWhiteSpace(connectionString))
+            throw new InvalidOperationException("This block has no connection string yet.");
+        if (string.IsNullOrWhiteSpace(query))
+            throw new InvalidOperationException("This block has no query yet.");
+
+        using var connection = CreateConnection(
+            provider, WithConnectTimeout(provider, connectionString, connectTimeoutSeconds));
+        connection.Open();
+
+        using var command = connection.CreateCommand();
+        command.CommandText = PlaceholdersAsNull(query);
+        command.CommandTimeout = 15;
+        using var reader = command.ExecuteReader(CommandBehavior.SchemaOnly);
+
+        var columns = new List<SourceColumnInfo>(reader.FieldCount);
+        for (var i = 0; i < reader.FieldCount; i++)
+        {
+            string? type = null;
+            try { type = reader.GetDataTypeName(i); } catch (Exception) { /* provider cannot say */ }
+            columns.Add(new SourceColumnInfo(reader.GetName(i), type is null ? null : $"type: {type}"));
+        }
+
+        return new SourceSchema
+        {
+            Label = ProviderLabel(provider),
+            Columns = columns,
+            Note = "result schema only, no rows read"
+        };
+    }
+
+    private static string ProviderLabel(string provider) => provider.Trim().ToLowerInvariant() switch
+    {
+        "sqlserver" or "mssql" or "sql" => "SQL Server",
+        "sqlite" => "SQLite",
+        _ => provider.Trim()
+    };
+
+    private static DbConnection CreateConnection(string provider, string connectionString) =>
+        provider.Trim().ToLowerInvariant() switch
+        {
+            "sqlserver" or "mssql" or "sql" => new SqlConnection(connectionString),
+            "sqlite" => new SqliteConnection(connectionString),
+            _ => throw new InvalidOperationException(
+                $"Unknown database provider '{provider}'. Supported: SqlServer, Sqlite.")
+        };
+
+    /// <summary>Keeps the editor from hanging on an unreachable server while you type.</summary>
+    private static string WithConnectTimeout(string provider, string connectionString, int seconds)
+    {
+        try
+        {
+            if (provider.Trim().ToLowerInvariant() is "sqlserver" or "mssql" or "sql")
+                return new SqlConnectionStringBuilder(connectionString) { ConnectTimeout = seconds }.ToString();
+        }
+        catch (Exception)
+        {
+            // malformed connection string: let opening it report the real problem
+        }
+        return connectionString;
+    }
+
+    /// <summary>
+    /// At design time there is no current record, so the {expressions} a query is
+    /// driven by become NULL: the statement still describes its columns, and the
+    /// substitution cannot widen what the query would match.
+    /// </summary>
+    private static string PlaceholdersAsNull(string query)
+    {
+        var text = query;
+        foreach (var raw in TemplateEngine.ExtractPlaceholders(query)
+                     .Select(p => p.RawPlaceholder).Distinct())
+            text = text.Replace(raw, "NULL");
+        return text;
     }
 
     private static object? Normalize(object value) => value switch

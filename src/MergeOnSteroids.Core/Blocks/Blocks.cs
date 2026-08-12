@@ -11,21 +11,38 @@ namespace MergeOnSteroids.Core.Blocks;
 public abstract class SourceBlockBase : Block
 {
     private string _name = "";
+    private IReadOnlyList<SourceColumnInfo> _detectedColumns = [];
+    private string _schemaStatus = "";
+
     /// <summary>Name other blocks use to refer to this source.</summary>
     public string Name { get => _name; set => Set(ref _name, value); }
+
+    /// <summary>
+    /// Columns read back from the source so the editor can show them on the block.
+    /// Design-time only — re-read from the source, never saved with the program.
+    /// </summary>
+    [JsonIgnore]
+    public IReadOnlyList<SourceColumnInfo> DetectedColumns
+    {
+        get => _detectedColumns;
+        set { Set(ref _detectedColumns, value); Raise(nameof(HasDetectedColumns)); }
+    }
+
+    /// <summary>What the last read of the source found (or why it failed). Design-time only.</summary>
+    [JsonIgnore]
+    public string SchemaStatus { get => _schemaStatus; set => Set(ref _schemaStatus, value); }
+
+    [JsonIgnore] public bool HasDetectedColumns => DetectedColumns.Count > 0;
 }
 
 /// <summary>
 /// Base for the data sources that read a file the user can point at: they share a
-/// path, a header row, and the columns the editor reads back from the file so the
-/// block can show them.
+/// path and a header row.
 /// </summary>
 public abstract class FileSourceBlockBase : SourceBlockBase
 {
     private string _filePath = "";
     private int _headerRow = 1;
-    private IReadOnlyList<SourceColumnInfo> _detectedColumns = [];
-    private string _schemaStatus = "";
 
     /// <summary>File path, relative to the program file or absolute. Supports {expressions}.</summary>
     public string FilePath { get => _filePath; set => Set(ref _filePath, value); }
@@ -36,23 +53,6 @@ public abstract class FileSourceBlockBase : SourceBlockBase
     /// are then named after their spreadsheet letters (A, B, C…).
     /// </summary>
     public int HeaderRow { get => _headerRow; set => Set(ref _headerRow, Math.Max(0, value)); }
-
-    /// <summary>
-    /// Columns read from the file so the editor can show them on the block.
-    /// Design-time only — re-read from the file, never saved with the program.
-    /// </summary>
-    [JsonIgnore]
-    public IReadOnlyList<SourceColumnInfo> DetectedColumns
-    {
-        get => _detectedColumns;
-        set { Set(ref _detectedColumns, value); Raise(nameof(HasDetectedColumns)); }
-    }
-
-    /// <summary>What the last read of the file found (or why it failed). Design-time only.</summary>
-    [JsonIgnore]
-    public string SchemaStatus { get => _schemaStatus; set => Set(ref _schemaStatus, value); }
-
-    [JsonIgnore] public bool HasDetectedColumns => DetectedColumns.Count > 0;
 }
 
 public sealed class CsvSourceBlock : FileSourceBlockBase
@@ -84,6 +84,9 @@ public sealed class DatabaseSourceBlock : SourceBlockBase
     private string _provider = "SqlServer";
     private string _connectionString = "";
     private string _query = "";
+
+    public DatabaseSourceBlock() =>
+        SchemaStatus = "click ⟳ to ask the database which columns this query returns";
 
     /// <summary>"SqlServer" or "Sqlite".</summary>
     public string Provider { get => _provider; set => Set(ref _provider, value); }
