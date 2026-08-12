@@ -12,5 +12,6 @@ public partial class App : Application
     {
         base.OnStartup(e);
         ThemeManager.Initialize();
+        InputFocus.Track();
     }
 }

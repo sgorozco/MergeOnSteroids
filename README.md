@@ -46,6 +46,7 @@ Programs are JSON files (`*.mos.json`) — friendly to source control.
 | Category | Block | Purpose |
 |---|---|---|
 | Data sources (green) | open CSV / open Excel / open database | Load a named data source (whole table in memory). Database queries support `{expression}` interpolation, so a query can be driven by the current record. |
+| | ↳ open CSV / open Excel | Say which row holds the column names — report titles and blank rows above it are skipped (`0` = no header row, columns are then `A`, `B`, `C`…). Excel also picks the sheet from the workbook's own list; CSV detects comma, semicolon and tab separators. Both blocks read the file as you type and list the columns they found: click one to drop its reference into the input you were last typing in (with `{braces}` where that field is a text template). |
 | | filter data source | New source containing only rows matching a condition, e.g. `CustomerId = c.Id` — the way to get "the orders of the current customer". |
 | Control (gold) | for each record | Loops its contents once per record; the record is available under an alias (`c` → `c.Name`). |
 | | if / else | Conditional content — paragraphs, tables, even whole documents. |
@@ -60,7 +61,7 @@ Programs are JSON files (`*.mos.json`) — friendly to source control.
 
 Used in conditions, computed values, and `{placeholders}` inside text.
 
-- **Fields**: `c.Company` (loop alias), bare `Amount` (innermost record), `[Order Date]` (names with spaces)
+- **Fields**: `c.Company` (loop alias), bare `Amount` (innermost record), `[Order Date]` / `c.[Order Date]` (brackets for names with spaces or punctuation, names starting with a digit, and names that collide with a keyword such as `[Null]`)
 - **Operators**: `+ - * / %`, `&` (concat), `= <> < <= > >=`, `AND OR NOT`
 - **Literals**: `123`, `12.5`, `"text"`, `TRUE`, `FALSE`, `NULL`
 - **Functions**: `UPPER LOWER TRIM LEN LEFT RIGHT REPLACE CONTAINS STARTSWITH ENDSWITH CONCAT FORMAT ROUND ABS VALUE IIF ISNULL/COALESCE TODAY NOW YEAR MONTH DAY`

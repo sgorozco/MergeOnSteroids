@@ -70,6 +70,35 @@
                 Value="{Binding DataContext.AvailableSources, RelativeSource={RelativeSource AncestorType=Window}}"/>
     </Style>
 
+    <!-- a detected column, clickable to drop its reference into the input you were typing in -->
+    <Style x:Key="ColumnChip" TargetType="Button">
+        <Setter Property="Focusable" Value="False"/>
+        <Setter Property="Margin" Value="0,2,4,0"/>
+        <Setter Property="Padding" Value="7,2"/>
+        <Setter Property="FontSize" Value="11.5"/>
+        <Setter Property="Foreground" Value="{DynamicResource BlockLabelForegroundBrush}"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Bd" CornerRadius="9" Padding="{TemplateBinding Padding}"
+                            Background="#33FFFFFF" BorderBrush="#59FFFFFF" BorderThickness="1">
+                        <ContentPresenter/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="#66FFFFFF"/>
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="#CCFFFFFF"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="#99FFFFFF"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <Style x:Key="BlockCheck" TargetType="CheckBox" BasedOn="{StaticResource {x:Type CheckBox}}">
         <Setter Property="Foreground" Value="{DynamicResource BlockLabelForegroundBrush}"/>
         <Setter Property="FontSize" Value="12"/>
@@ -146,38 +175,103 @@
 
     <!-- ============================== data source blocks ============================== -->
 
+    <!-- the columns read back from the file, shared by the CSV and Excel blocks -->
+    <DataTemplate x:Key="SourceColumnsTemplate">
+        <Border Margin="2,5,2,0" Padding="8,4,8,7" CornerRadius="6"
+                Background="{DynamicResource BlockNestBackgroundBrush}"
+                BorderBrush="{DynamicResource BlockNestBorderBrush}" BorderThickness="1">
+            <StackPanel>
+                <ItemsControl ItemsSource="{Binding DetectedColumns}" Focusable="False"
+                              MaxWidth="520" HorizontalAlignment="Left">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Button Style="{StaticResource ColumnChip}" Content="{Binding Name}"
+                                    Command="{Binding DataContext.InsertColumnCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                    CommandParameter="{Binding}">
+                                <Button.ToolTip>
+                                    <StackPanel>
+                                        <TextBlock FontWeight="SemiBold" Text="{Binding Reference}"/>
+                                        <TextBlock Text="{Binding SampleText, StringFormat='first value: {0}'}"
+                                                   Foreground="{DynamicResource MutedForegroundBrush}"/>
+                                        <TextBlock Text="click to insert it where you were typing"
+                                                   Foreground="{DynamicResource MutedForegroundBrush}"
+                                                   FontStyle="Italic" Margin="0,3,0,0"/>
+                                    </StackPanel>
+                                </Button.ToolTip>
+                            </Button>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <TextBlock Text="{Binding SchemaStatus}" TextWrapping="Wrap" MaxWidth="520"
+                           FontSize="11" Margin="0,3,0,0" Opacity="0.85" HorizontalAlignment="Left"
+                           Foreground="{DynamicResource BlockLabelForegroundBrush}"/>
+            </StackPanel>
+        </Border>
+    </DataTemplate>
+
     <DataTemplate DataType="{x:Type b:CsvSourceBlock}">
         <controls:BlockChrome BlockBrush="{DynamicResource BlockDataBrush}"
                               BlockBorderBrush="{DynamicResource BlockDataBorderBrush}">
-            <WrapPanel>
-                <TextBlock Style="{StaticResource BlockLabel}" Text="open CSV"/>
-                <TextBox Style="{StaticResource BlockInput}"
-                         Text="{Binding FilePath, UpdateSourceTrigger=PropertyChanged}" MinWidth="200"
-                         ToolTip="CSV file path (relative paths resolve against the program file)"/>
-                <TextBlock Style="{StaticResource BlockLabel}" Text="as"/>
-                <TextBox Style="{StaticResource BlockInput}"
-                         Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}"
-                         ToolTip="Name used by other blocks to refer to this source"/>
-            </WrapPanel>
+            <StackPanel>
+                <WrapPanel>
+                    <TextBlock Style="{StaticResource BlockLabel}" Text="open CSV"/>
+                    <TextBox Style="{StaticResource BlockInput}" common:InputFocus.Kind="Template"
+                             Text="{Binding FilePath, UpdateSourceTrigger=PropertyChanged}" MinWidth="200"
+                             ToolTip="CSV file path (relative paths resolve against the program file).&#10;Comma, semicolon and tab separated files are all recognised."/>
+                    <TextBlock Style="{StaticResource BlockLabel}" Text="header row"/>
+                    <TextBox Style="{StaticResource BlockInput}" MinWidth="34" TextAlignment="Center"
+                             Text="{Binding HeaderRow, UpdateSourceTrigger=LostFocus}"
+                             ToolTip="Line holding the column names — lines above it (report titles, blank lines) are skipped.&#10;0 = the file has no header line, and the columns are then called A, B, C…"/>
+                    <TextBlock Style="{StaticResource BlockLabel}" Text="as"/>
+                    <TextBox Style="{StaticResource BlockInput}"
+                             Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}"
+                             ToolTip="Name used by other blocks to refer to this source"/>
+                    <Button Content="⟳" Margin="4,0,0,0" Padding="7,2" FontSize="12"
+                            Command="{Binding DataContext.ReadSchemaCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                            CommandParameter="{Binding}"
+                            ToolTip="Re-read the file — use after it changed outside the editor"/>
+                </WrapPanel>
+                <ContentControl Content="{Binding}" Focusable="False"
+                                ContentTemplate="{StaticResource SourceColumnsTemplate}"/>
+            </StackPanel>
         </controls:BlockChrome>
     </DataTemplate>
 
     <DataTemplate DataType="{x:Type b:ExcelSourceBlock}">
         <controls:BlockChrome BlockBrush="{DynamicResource BlockDataBrush}"
                               BlockBorderBrush="{DynamicResource BlockDataBorderBrush}">
-            <WrapPanel>
-                <TextBlock Style="{StaticResource BlockLabel}" Text="open Excel"/>
-                <TextBox Style="{StaticResource BlockInput}"
-                         Text="{Binding FilePath, UpdateSourceTrigger=PropertyChanged}" MinWidth="200"
-                         ToolTip="Excel file path (.xlsx)"/>
-                <TextBlock Style="{StaticResource BlockLabel}" Text="sheet"/>
-                <TextBox Style="{StaticResource BlockInput}"
-                         Text="{Binding SheetName, UpdateSourceTrigger=PropertyChanged}"
-                         ToolTip="Worksheet name (empty = first sheet)"/>
-                <TextBlock Style="{StaticResource BlockLabel}" Text="as"/>
-                <TextBox Style="{StaticResource BlockInput}"
-                         Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}"/>
-            </WrapPanel>
+            <StackPanel>
+                <WrapPanel>
+                    <TextBlock Style="{StaticResource BlockLabel}" Text="open Excel"/>
+                    <TextBox Style="{StaticResource BlockInput}" common:InputFocus.Kind="Template"
+                             Text="{Binding FilePath, UpdateSourceTrigger=PropertyChanged}" MinWidth="165"
+                             ToolTip="Excel file path (.xlsx). Relative paths resolve against the program file."/>
+                    <TextBlock Style="{StaticResource BlockLabel}" Text="sheet"/>
+                    <ComboBox IsEditable="True" MinWidth="98" FontSize="12"
+                              VerticalAlignment="Center" Margin="2,1"
+                              ItemsSource="{Binding DetectedSheets}"
+                              Text="{Binding SheetName, UpdateSourceTrigger=PropertyChanged}"
+                              ToolTip="Worksheet name (empty = first sheet). The list fills in once the file is found."/>
+                    <TextBlock Style="{StaticResource BlockLabel}" Text="header row"/>
+                    <TextBox Style="{StaticResource BlockInput}" MinWidth="34" TextAlignment="Center"
+                             Text="{Binding HeaderRow, UpdateSourceTrigger=LostFocus}"
+                             ToolTip="Worksheet row holding the column names — rows above it (report titles, blank rows) are skipped.&#10;0 = the sheet has no header row, and the columns are then called A, B, C…"/>
+                    <TextBlock Style="{StaticResource BlockLabel}" Text="as"/>
+                    <TextBox Style="{StaticResource BlockInput}"
+                             Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}"/>
+                    <Button Content="⟳" Margin="4,0,0,0" Padding="7,2" FontSize="12"
+                            Command="{Binding DataContext.ReadSchemaCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                            CommandParameter="{Binding}"
+                            ToolTip="Re-read the workbook — use after the file changed outside the editor"/>
+                </WrapPanel>
+                <ContentControl Content="{Binding}" Focusable="False"
+                                ContentTemplate="{StaticResource SourceColumnsTemplate}"/>
+            </StackPanel>
         </controls:BlockChrome>
     </DataTemplate>
 
@@ -204,7 +298,7 @@
                 </WrapPanel>
                 <WrapPanel>
                     <TextBlock Style="{StaticResource BlockLabel}" Text="query"/>
-                    <TextBox Style="{StaticResource BlockInputWide}"
+                    <TextBox Style="{StaticResource BlockInputWide}" common:InputFocus.Kind="Template"
                              Text="{Binding Query, UpdateSourceTrigger=PropertyChanged}" MinWidth="320"
                              ToolTip="SQL query. {expressions} are interpolated from the current record."/>
                 </WrapPanel>
@@ -311,11 +405,11 @@
             <StackPanel>
                 <WrapPanel>
                     <TextBlock Style="{StaticResource BlockLabel}" Text="📄 new document, save as"/>
-                    <TextBox Style="{StaticResource BlockInput}"
+                    <TextBox Style="{StaticResource BlockInput}" common:InputFocus.Kind="Template"
                              Text="{Binding FileNameTemplate, UpdateSourceTrigger=PropertyChanged}" MinWidth="190"
                              ToolTip="File name without extension. {expressions} allowed, e.g. Letter_{c.Name}"/>
                     <TextBlock Style="{StaticResource BlockLabel}" Text="template"/>
-                    <TextBox Style="{StaticResource BlockInput}"
+                    <TextBox Style="{StaticResource BlockInput}" common:InputFocus.Kind="Template"
                              Text="{Binding TemplatePath, UpdateSourceTrigger=PropertyChanged}" MinWidth="110"
                              ToolTip="Optional .dotx/.docx the document starts from (empty = blank)"/>
                 </WrapPanel>
@@ -342,7 +436,7 @@
                     <CheckBox Style="{StaticResource BlockCheck}" IsChecked="{Binding Bold}" Content="B" FontWeight="Bold"/>
                     <CheckBox Style="{StaticResource BlockCheck}" IsChecked="{Binding Italic}" Content="I" FontStyle="Italic"/>
                 </WrapPanel>
-                <TextBox Style="{StaticResource BlockInputWide}"
+                <TextBox Style="{StaticResource BlockInputWide}" common:InputFocus.Kind="Template"
                          Text="{Binding TextTemplate, UpdateSourceTrigger=PropertyChanged}"
                          Margin="2,3,2,0"
                          ToolTip="Paragraph text. {expressions} insert data, e.g. Dear {c.Contact},"/>

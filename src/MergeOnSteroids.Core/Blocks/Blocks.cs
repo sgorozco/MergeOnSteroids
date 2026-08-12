@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using MergeOnSteroids.Core.Data;
 
 namespace MergeOnSteroids.Core.Blocks;
 
@@ -14,22 +15,66 @@ public abstract class SourceBlockBase : Block
     public string Name { get => _name; set => Set(ref _name, value); }
 }
 
-public sealed class CsvSourceBlock : SourceBlockBase
+/// <summary>
+/// Base for the data sources that read a file the user can point at: they share a
+/// path, a header row, and the columns the editor reads back from the file so the
+/// block can show them.
+/// </summary>
+public abstract class FileSourceBlockBase : SourceBlockBase
 {
     private string _filePath = "";
+    private int _headerRow = 1;
+    private IReadOnlyList<SourceColumnInfo> _detectedColumns = [];
+    private string _schemaStatus = "";
+
+    /// <summary>File path, relative to the program file or absolute. Supports {expressions}.</summary>
     public string FilePath { get => _filePath; set => Set(ref _filePath, value); }
 
+    /// <summary>
+    /// 1-based row holding the column names — anything above it (report titles,
+    /// blank rows) is skipped. 0 means the file has no header row, and the columns
+    /// are then named after their spreadsheet letters (A, B, C…).
+    /// </summary>
+    public int HeaderRow { get => _headerRow; set => Set(ref _headerRow, Math.Max(0, value)); }
+
+    /// <summary>
+    /// Columns read from the file so the editor can show them on the block.
+    /// Design-time only — re-read from the file, never saved with the program.
+    /// </summary>
+    [JsonIgnore]
+    public IReadOnlyList<SourceColumnInfo> DetectedColumns
+    {
+        get => _detectedColumns;
+        set { Set(ref _detectedColumns, value); Raise(nameof(HasDetectedColumns)); }
+    }
+
+    /// <summary>What the last read of the file found (or why it failed). Design-time only.</summary>
+    [JsonIgnore]
+    public string SchemaStatus { get => _schemaStatus; set => Set(ref _schemaStatus, value); }
+
+    [JsonIgnore] public bool HasDetectedColumns => DetectedColumns.Count > 0;
+}
+
+public sealed class CsvSourceBlock : FileSourceBlockBase
+{
     [JsonIgnore] public override string DisplayName => "open CSV data source";
 }
 
-public sealed class ExcelSourceBlock : SourceBlockBase
+public sealed class ExcelSourceBlock : FileSourceBlockBase
 {
-    private string _filePath = "";
     private string _sheetName = "";
+    private IReadOnlyList<string> _detectedSheets = [];
 
-    public string FilePath { get => _filePath; set => Set(ref _filePath, value); }
     /// <summary>Worksheet name; empty = first sheet.</summary>
     public string SheetName { get => _sheetName; set => Set(ref _sheetName, value); }
+
+    /// <summary>Sheet names of the workbook, offered as a drop-down. Design-time only.</summary>
+    [JsonIgnore]
+    public IReadOnlyList<string> DetectedSheets
+    {
+        get => _detectedSheets;
+        set => Set(ref _detectedSheets, value);
+    }
 
     [JsonIgnore] public override string DisplayName => "open Excel data source";
 }

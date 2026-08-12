@@ -102,14 +102,22 @@ public sealed class Interpreter
     {
         RequireSourceName(b);
         var path = _options.ResolvePath(Interpolate(b.FilePath));
-        var key = "csv|" + path;
+        var key = $"csv|{path}|{b.HeaderRow}";
         if (!_fileCache.TryGetValue(key, out var table))
         {
             if (!File.Exists(path))
                 throw new MosRuntimeException($"CSV file not found: {path} (source '{b.Name}').");
-            table = DataSourceLoaders.LoadCsv(path, b.Name);
+            try
+            {
+                table = DataSourceLoaders.LoadCsv(path, b.Name, b.HeaderRow);
+            }
+            catch (InvalidOperationException ex)
+            {
+                throw new MosRuntimeException($"Source '{b.Name}': {ex.Message}");
+            }
             _fileCache[key] = table;
             _log($"Source '{b.Name}': {table.Rows.Count} row(s) from {Path.GetFileName(path)} " +
+                 $"({(b.HeaderRow > 0 ? $"headers in row {b.HeaderRow}" : "no header row")}) " +
                  $"[{string.Join(", ", table.Columns)}]");
         }
         _ctx.RegisterSource(b.Name, table);
@@ -119,14 +127,22 @@ public sealed class Interpreter
     {
         RequireSourceName(b);
         var path = _options.ResolvePath(Interpolate(b.FilePath));
-        var key = $"xlsx|{path}|{b.SheetName}";
+        var key = $"xlsx|{path}|{b.SheetName}|{b.HeaderRow}";
         if (!_fileCache.TryGetValue(key, out var table))
         {
             if (!File.Exists(path))
                 throw new MosRuntimeException($"Excel file not found: {path} (source '{b.Name}').");
-            table = DataSourceLoaders.LoadExcel(path, b.SheetName, b.Name);
+            try
+            {
+                table = DataSourceLoaders.LoadExcel(path, b.SheetName, b.Name, b.HeaderRow);
+            }
+            catch (InvalidOperationException ex)
+            {
+                throw new MosRuntimeException($"Source '{b.Name}': {ex.Message}");
+            }
             _fileCache[key] = table;
             _log($"Source '{b.Name}': {table.Rows.Count} row(s) from {Path.GetFileName(path)} " +
+                 $"({(b.HeaderRow > 0 ? $"headers in row {b.HeaderRow}" : "no header row")}) " +
                  $"[{string.Join(", ", table.Columns)}]");
         }
         _ctx.RegisterSource(b.Name, table);

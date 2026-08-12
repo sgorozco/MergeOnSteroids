@@ -51,7 +51,9 @@ public sealed class ExpressionCompiler
 
     // ------------------------------------------------------------ tokenizer
 
-    private enum TokKind { Ident, Number, String, Symbol, End }
+    // QuotedIdent is a [bracketed] name: always a field, never a keyword — so a
+    // column really called "Null" or "And" can still be read as [Null], [And].
+    private enum TokKind { Ident, QuotedIdent, Number, String, Symbol, End }
 
     private readonly record struct Token(TokKind Kind, string Text, int Pos);
 
@@ -174,18 +176,19 @@ public sealed class ExpressionCompiler
                 case TokKind.Ident when IsKeyword("TRUE"): Next(); return new ConstNode(true);
                 case TokKind.Ident when IsKeyword("FALSE"): Next(); return new ConstNode(false);
                 case TokKind.Ident when IsKeyword("NULL"): Next(); return new ConstNode(null);
-                case TokKind.Ident:
+                case TokKind.Ident or TokKind.QuotedIdent:
                     {
                         var name = _current.Text;
+                        var wasQuoted = _current.Kind == TokKind.QuotedIdent;
                         Next();
-                        if (_current.Kind == TokKind.Symbol && _current.Text == "(")
+                        if (!wasQuoted && _current.Kind == TokKind.Symbol && _current.Text == "(")
                             return ParseCall(name);
 
                         var segments = new List<string> { name };
                         while (_current.Kind == TokKind.Symbol && _current.Text == ".")
                         {
                             Next();
-                            if (_current.Kind != TokKind.Ident)
+                            if (_current.Kind is not (TokKind.Ident or TokKind.QuotedIdent))
                                 throw Error($"Expected a field name after '{string.Join(".", segments)}.'");
                             segments.Add(_current.Text);
                             Next();
@@ -259,7 +262,7 @@ public sealed class ExpressionCompiler
             {
                 var end = _src.IndexOf(']', _pos + 1);
                 if (end < 0) throw new MosExpressionException($"Unterminated '[' at position {start + 1} in \"{_src}\"");
-                _current = new Token(TokKind.Ident, _src.Substring(_pos + 1, end - _pos - 1).Trim(), start);
+                _current = new Token(TokKind.QuotedIdent, _src.Substring(_pos + 1, end - _pos - 1).Trim(), start);
                 _pos = end + 1;
                 return;
             }

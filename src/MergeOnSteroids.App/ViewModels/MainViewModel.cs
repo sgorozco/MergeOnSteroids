@@ -9,6 +9,7 @@ using System.Windows.Threading;
 using MergeOnSteroids.App.Common;
 using MergeOnSteroids.Core;
 using MergeOnSteroids.Core.Blocks;
+using MergeOnSteroids.Core.Data;
 using MergeOnSteroids.Core.Fragments;
 using MergeOnSteroids.Core.Runtime;
 using MergeOnSteroids.Core.Samples;
@@ -26,6 +27,11 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private readonly Dispatcher _dispatcher = Application.Current.Dispatcher;
     private readonly StringBuilder _log = new();
     private CancellationTokenSource? _runCts;
+
+    // File sources re-read their columns shortly after the path/sheet/header row changes.
+    private readonly DispatcherTimer _schemaTimer;
+    private readonly List<FileSourceBlockBase> _schemaQueue = [];
+    private readonly HashSet<FileSourceBlockBase> _schemaReading = [];
 
     private ProgramModel _program = new();
     private string? _currentFilePath;
@@ -60,8 +66,17 @@ public sealed class MainViewModel : INotifyPropertyChanged
             p => RefreshFragment(p as WordFragmentBlock),
             p => !IsRunning && p is WordFragmentBlock { FragmentFile.Length: > 0 });
         ToggleThemeCommand = new RelayCommand(ThemeManager.Toggle);
+        ReadSchemaCommand = new ParamRelayCommand(
+            p => _ = ReadSchemaAsync(p as FileSourceBlockBase),
+            p => p is FileSourceBlockBase { FilePath.Length: > 0 });
+        InsertColumnCommand = new ParamRelayCommand(p => InsertColumnReference(p as SourceColumnInfo));
 
         ThemeManager.ThemeChanged += OnThemeChanged;
+        _schemaTimer = new DispatcherTimer(DispatcherPriority.Background, _dispatcher)
+        {
+            Interval = TimeSpan.FromMilliseconds(700)
+        };
+        _schemaTimer.Tick += (_, _) => { _schemaTimer.Stop(); ReadQueuedSchemas(); };
 
         LoadProgram(new ProgramModel(), null);
     }
@@ -133,6 +148,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public RelayCommand ClearLogCommand { get; }
     public ParamRelayCommand EditFragmentCommand { get; }
     public ParamRelayCommand RefreshFragmentCommand { get; }
+    public ParamRelayCommand ReadSchemaCommand { get; }
+    public ParamRelayCommand InsertColumnCommand { get; }
 
     // -------------------------------------------------------- file handling
 
@@ -239,6 +256,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         SelectedBlock = null;
         RefreshSources();
         HydrateFragments();
+        foreach (var source in Program.AllBlocks().OfType<FileSourceBlockBase>()) _ = ReadSchemaAsync(source);
         IsDirty = false;   // hydration touches blocks; that is not a user edit
     }
 
@@ -290,10 +308,29 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     private void OnBlockPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
+        if (IsDesignTimeProperty(e.PropertyName)) return;   // read back from a file, not a user edit
+
         IsDirty = true;
         if (e.PropertyName == nameof(SourceBlockBase.Name))
             RefreshSources();
+
+        if (sender is FileSourceBlockBase source && e.PropertyName is
+            nameof(FileSourceBlockBase.FilePath) or nameof(FileSourceBlockBase.HeaderRow) or
+            nameof(ExcelSourceBlock.SheetName))
+            QueueSchemaRead(source);
     }
+
+    /// <summary>
+    /// Block properties the editor fills in from the files a block points at
+    /// (fragment previews, Excel columns). Changing them is not a program edit.
+    /// </summary>
+    private static bool IsDesignTimeProperty(string? name) => name is
+        nameof(WordFragmentBlock.PlainText) or
+        nameof(WordFragmentBlock.PreviewImage) or
+        nameof(FileSourceBlockBase.DetectedColumns) or
+        nameof(FileSourceBlockBase.HasDetectedColumns) or
+        nameof(FileSourceBlockBase.SchemaStatus) or
+        nameof(ExcelSourceBlock.DetectedSheets);
 
     private void RefreshSources()
     {
@@ -444,6 +481,93 @@ public sealed class MainViewModel : INotifyPropertyChanged
         }
     }
 
+    // --------------------------------------------------- data source columns
+
+    /// <summary>Schedules a (debounced) re-read of the file a block points at.</summary>
+    private void QueueSchemaRead(FileSourceBlockBase block)
+    {
+        if (!_schemaQueue.Contains(block)) _schemaQueue.Add(block);
+        _schemaTimer.Stop();
+        _schemaTimer.Start();
+    }
+
+    private void ReadQueuedSchemas()
+    {
+        var pending = _schemaQueue.ToList();
+        _schemaQueue.Clear();
+        foreach (var block in pending) _ = ReadSchemaAsync(block);
+    }
+
+    /// <summary>
+    /// Reads the column names (and, for a workbook, the sheet names) out of the file
+    /// a block points at, so the block can show them. Runs off the UI thread — data
+    /// files can be big.
+    /// </summary>
+    private async Task ReadSchemaAsync(FileSourceBlockBase? block)
+    {
+        if (block is null || !_schemaReading.Add(block)) return;
+        try
+        {
+            if (string.IsNullOrWhiteSpace(block.FilePath))
+            {
+                SetSchema(block, null, "");
+                return;
+            }
+
+            var path = Path.GetFullPath(Path.Combine(RunBaseFolder, block.FilePath.Trim()));
+            if (!File.Exists(path))
+            {
+                SetSchema(block, null, CurrentFilePath is null && !Path.IsPathRooted(block.FilePath)
+                    ? "save the program next to the data file, or use a full path"
+                    : $"file not found: {path}");
+                return;
+            }
+
+            var headerRow = block.HeaderRow;
+            var sheetName = (block as ExcelSourceBlock)?.SheetName ?? "";
+            var isExcel = block is ExcelSourceBlock;
+            try
+            {
+                var schema = await Task.Run(() => isExcel
+                    ? DataSourceLoaders.PeekExcel(path, sheetName, headerRow)
+                    : DataSourceLoaders.PeekCsv(path, headerRow));
+                SetSchema(block, schema, schema.Summary);
+            }
+            catch (Exception ex)
+            {
+                SetSchema(block, null, ex.Message);
+            }
+        }
+        finally
+        {
+            _schemaReading.Remove(block);
+        }
+    }
+
+    private static void SetSchema(FileSourceBlockBase block, SourceSchema? schema, string status)
+    {
+        block.DetectedColumns = schema?.Columns ?? [];
+        if (schema is not null && block is ExcelSourceBlock excel) excel.DetectedSheets = schema.SheetNames;
+        block.SchemaStatus = status;
+    }
+
+    /// <summary>Drops a column reference into whichever block input was last used.</summary>
+    private void InsertColumnReference(SourceColumnInfo? column)
+    {
+        if (column is null) return;
+        if (InputFocus.TryInsert(column.Reference)) return;
+
+        try
+        {
+            Clipboard.SetText(column.Reference);
+            Log($"Copied '{column.Reference}' to the clipboard — click inside a block input first to insert it there.");
+        }
+        catch (Exception ex)
+        {
+            Log($"warning: could not copy '{column.Reference}': {ex.Message}");
+        }
+    }
+
     private void DeleteSelected()
     {
         var block = SelectedBlock;
@@ -562,9 +686,13 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
         return
         [
-            new("Data sources", "open CSV file", "Loads a CSV file as a named data source.",
+            new("Data sources", "open CSV file", "Loads a delimited text file as a named data source. " +
+                "Say which line holds the column names, and the block lists the columns it found — " +
+                "click one to use it in the input you are typing in.",
                 data, () => new CsvSourceBlock { Name = "source1" }),
-            new("Data sources", "open Excel file", "Loads an Excel worksheet as a named data source.",
+            new("Data sources", "open Excel file", "Loads an Excel worksheet as a named data source. " +
+                "Say which row holds the column names, and the block lists the columns it found — " +
+                "click one to use it in the input you are typing in.",
                 data, () => new ExcelSourceBlock { Name = "source1" }),
             new("Data sources", "open database query", "Runs a SQL query (SQL Server or SQLite) as a named data source.",
                 data, () => new DatabaseSourceBlock { Name = "source1" }),
