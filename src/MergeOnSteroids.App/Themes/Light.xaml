@@ -64,6 +64,8 @@
     <SolidColorBrush x:Key="BlockVariablesBorderBrush" Color="#DB6E00"/>
     <SolidColorBrush x:Key="BlockDocumentBrush" Color="#4C97FF"/>
     <SolidColorBrush x:Key="BlockDocumentBorderBrush" Color="#3373CC"/>
+    <SolidColorBrush x:Key="BlockFolderBrush" Color="#9966FF"/>
+    <SolidColorBrush x:Key="BlockFolderBorderBrush" Color="#774DCB"/>
 
     <SolidColorBrush x:Key="HatBlockBrush" Color="#5B6470"/>
     <SolidColorBrush x:Key="BlockLabelForegroundBrush" Color="#FFFFFF"/>

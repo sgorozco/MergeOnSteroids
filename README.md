@@ -51,7 +51,10 @@ Programs are JSON files (`*.mos.json`) — friendly to source control.
 | | filter data source | New source containing only rows matching a condition, e.g. `CustomerId = c.Id` — the way to get "the orders of the current customer". |
 | Control (gold) | for each record | Loops its contents once per record; the record is available under an alias (`c` → `c.Name`). |
 | | if / else | Conditional content — paragraphs, tables, even whole documents. |
+| | switch + case | Picks one branch by value. Fill the switch with `case` blocks (a case answers to one value, or to several separated by commas: `"MX", "GT"`); anything none of them matched runs under *otherwise*. |
 | Variables (orange) | set variable | Store a computed value under a name. |
+| Folders (purple) | make folder | Creates a folder and saves everything produced inside the block there. Nests: put it in a loop for one folder per record, and a `/` in the name makes another level (`{c.City}/{c.Company}`). |
+| | zip folder | The same, except the folder is zipped to `<name>.zip` beside itself when the block ends, and removed unless you tick *keep the folder too*. Everything nests inside it — loops, `make folder`, documents — so one archive can hold a whole tree. |
 | Document (blue) | new document | Starts a Word document, saved when the block finishes. Place inside a loop for one document per record. Supports an optional `.dotx` template. |
 | | add paragraph | Styled paragraph (Normal, Heading 1–3, Title, Subtitle, Quote, List Bullet + bold/italic). Text supports `{expressions}`. The block shows a live preview styled the way Word will render it. |
 | | Word paragraphs (rich) | **Real Word content embedded in the block.** Click *Edit in Word* — the fragment's own `.docx` opens in Microsoft Word, where you write and format freely (styles, colors, bullets, anything). At run time the fragment is inserted with full fidelity and `{expressions}` in its text are substituted via Word find/replace, inheriting the surrounding formatting. Try `mos richsample` for a generated demo. |
@@ -98,6 +101,9 @@ re-read it.
 
 - Relative file paths (data sources, templates, fragments, output folder) resolve against
   the folder containing the `.mos.json` program — keep the program next to its data.
+- Folder names are built from your data, so they are cleaned before use: characters a file
+  name cannot hold become `_`, and `..` segments are dropped. A program can only ever write
+  inside its own output folder.
 - The editor has a light and a dark theme; the button at the right end of the toolbar
   switches between them. The first run follows the Windows app mode, and the choice is
   remembered in `%APPDATA%\MergeOnSteroids\settings.json`. Fragment and paragraph previews

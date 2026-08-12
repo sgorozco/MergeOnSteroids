@@ -397,6 +397,104 @@
         </controls:BlockChrome>
     </DataTemplate>
 
+    <DataTemplate DataType="{x:Type b:SwitchBlock}">
+        <controls:BlockChrome BlockBrush="{DynamicResource BlockControlBrush}"
+                              BlockBorderBrush="{DynamicResource BlockControlBorderBrush}">
+            <StackPanel>
+                <WrapPanel>
+                    <TextBlock Style="{StaticResource BlockLabel}" Text="switch on"/>
+                    <TextBox Style="{StaticResource BlockInput}"
+                             Text="{Binding ValueExpression, UpdateSourceTrigger=PropertyChanged}" MinWidth="200"
+                             ToolTip="Value the cases are compared against, e.g.  c.Country"/>
+                </WrapPanel>
+                <Border Margin="6,5,0,0" Padding="8,2,4,2"
+                        BorderThickness="5,0,0,0"
+                        BorderBrush="{DynamicResource BlockNestBorderBrush}"
+                        Background="{DynamicResource BlockNestBackgroundBrush}">
+                    <ContentControl Content="{Binding Children}"
+                                    ContentTemplate="{StaticResource ChildListTemplate}" Focusable="False"/>
+                </Border>
+                <TextBlock Style="{StaticResource BlockLabel}" Text="otherwise" Margin="6,4,0,0"/>
+                <Border Margin="6,2,0,0" Padding="8,2,4,2" CornerRadius="0,0,0,8"
+                        BorderThickness="5,0,0,5"
+                        BorderBrush="{DynamicResource BlockNestBorderBrush}"
+                        Background="{DynamicResource BlockNestBackgroundBrush}">
+                    <ContentControl Content="{Binding Else}"
+                                    ContentTemplate="{StaticResource ChildListTemplate}" Focusable="False"/>
+                </Border>
+            </StackPanel>
+        </controls:BlockChrome>
+    </DataTemplate>
+
+    <DataTemplate DataType="{x:Type b:CaseBlock}">
+        <controls:BlockChrome BlockBrush="{DynamicResource BlockControlBrush}"
+                              BlockBorderBrush="{DynamicResource BlockControlBorderBrush}">
+            <StackPanel>
+                <WrapPanel>
+                    <TextBlock Style="{StaticResource BlockLabel}" Text="case"/>
+                    <TextBox Style="{StaticResource BlockInput}"
+                             Text="{Binding MatchValues, UpdateSourceTrigger=PropertyChanged}" MinWidth="170"
+                             ToolTip="Value this branch answers to, or several separated by commas:&#10;&quot;MX&quot;, &quot;GT&quot;   —   each one is an expression, so c.Limit works too."/>
+                </WrapPanel>
+                <Border Margin="6,5,0,0" Padding="8,2,4,2" CornerRadius="0,0,0,8"
+                        BorderThickness="5,0,0,5"
+                        BorderBrush="{DynamicResource BlockNestBorderBrush}"
+                        Background="{DynamicResource BlockNestBackgroundBrush}">
+                    <ContentControl Content="{Binding Children}"
+                                    ContentTemplate="{StaticResource ChildListTemplate}" Focusable="False"/>
+                </Border>
+            </StackPanel>
+        </controls:BlockChrome>
+    </DataTemplate>
+
+    <!-- ============================== folder blocks ============================== -->
+
+    <DataTemplate DataType="{x:Type b:MakeDirectoryBlock}">
+        <controls:BlockChrome BlockBrush="{DynamicResource BlockFolderBrush}"
+                              BlockBorderBrush="{DynamicResource BlockFolderBorderBrush}">
+            <StackPanel>
+                <WrapPanel>
+                    <TextBlock Style="{StaticResource BlockLabel}" Text="📁 make folder"/>
+                    <TextBox Style="{StaticResource BlockInput}" common:InputFocus.Kind="Template"
+                             Text="{Binding FolderName, UpdateSourceTrigger=PropertyChanged}" MinWidth="200"
+                             ToolTip="Folder name, created inside whatever folder this block sits in.&#10;{expressions} allowed, e.g. {c.Country}/{c.Company} — a &quot;/&quot; makes another level."/>
+                    <TextBlock Style="{StaticResource BlockLabel}" Text="— documents inside go here"/>
+                </WrapPanel>
+                <Border Margin="6,5,0,0" Padding="8,2,4,2" CornerRadius="0,0,0,8"
+                        BorderThickness="5,0,0,5"
+                        BorderBrush="{DynamicResource BlockNestBorderBrush}"
+                        Background="{DynamicResource BlockNestBackgroundBrush}">
+                    <ContentControl Content="{Binding Children}"
+                                    ContentTemplate="{StaticResource ChildListTemplate}" Focusable="False"/>
+                </Border>
+            </StackPanel>
+        </controls:BlockChrome>
+    </DataTemplate>
+
+    <DataTemplate DataType="{x:Type b:ZipDirectoryBlock}">
+        <controls:BlockChrome BlockBrush="{DynamicResource BlockFolderBrush}"
+                              BlockBorderBrush="{DynamicResource BlockFolderBorderBrush}">
+            <StackPanel>
+                <WrapPanel>
+                    <TextBlock Style="{StaticResource BlockLabel}" Text="🗜 zip folder"/>
+                    <TextBox Style="{StaticResource BlockInput}" common:InputFocus.Kind="Template"
+                             Text="{Binding FolderName, UpdateSourceTrigger=PropertyChanged}" MinWidth="200"
+                             ToolTip="Everything made inside goes into this folder, which is then zipped to &lt;name&gt;.zip beside it.&#10;{expressions} allowed, e.g. Cartas_{FORMAT(TODAY(), &quot;yyyy-MM&quot;)}"/>
+                    <CheckBox Style="{StaticResource BlockCheck}" IsChecked="{Binding KeepFolder}"
+                              Content="keep the folder too"
+                              ToolTip="Leave the folder on disk next to the .zip instead of deleting it"/>
+                </WrapPanel>
+                <Border Margin="6,5,0,0" Padding="8,2,4,2" CornerRadius="0,0,0,8"
+                        BorderThickness="5,0,0,5"
+                        BorderBrush="{DynamicResource BlockNestBorderBrush}"
+                        Background="{DynamicResource BlockNestBackgroundBrush}">
+                    <ContentControl Content="{Binding Children}"
+                                    ContentTemplate="{StaticResource ChildListTemplate}" Focusable="False"/>
+                </Border>
+            </StackPanel>
+        </controls:BlockChrome>
+    </DataTemplate>
+
     <!-- ============================== variables ============================== -->
 
     <DataTemplate DataType="{x:Type b:SetVariableBlock}">

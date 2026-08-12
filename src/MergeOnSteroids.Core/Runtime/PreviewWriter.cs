@@ -8,8 +8,8 @@ namespace MergeOnSteroids.Core.Runtime;
 /// </summary>
 public sealed class PreviewWriter : IDocumentWriter
 {
-    private RunOptions _options = new();
     private StringBuilder? _doc;
+    private string _outputFolder = Environment.CurrentDirectory;
     private int _docCounter;
 
     /// <summary>(fileName, content) for every document produced in the run.</summary>
@@ -17,11 +17,13 @@ public sealed class PreviewWriter : IDocumentWriter
 
     public bool InDocument => _doc is not null;
 
-    public void Begin(RunOptions options)
+    public string OutputFolder
     {
-        _options = options;
-        Directory.CreateDirectory(options.OutputFolder);
+        get => _outputFolder;
+        set { _outputFolder = value; Directory.CreateDirectory(value); }
     }
+
+    public void Begin(RunOptions options) => OutputFolder = options.OutputFolder;
 
     public void BeginDocument(string? templatePath)
     {
@@ -99,7 +101,7 @@ public sealed class PreviewWriter : IDocumentWriter
         var name = string.IsNullOrWhiteSpace(fileNameWithoutExtension)
             ? $"Document_{_docCounter}"
             : fileNameWithoutExtension;
-        var path = Path.Combine(_options.OutputFolder, name + ".txt");
+        var path = Path.Combine(OutputFolder, name + ".txt");
         File.WriteAllText(path, d.ToString(), Encoding.UTF8);
         Documents.Add((path, d.ToString()));
         _doc = null;

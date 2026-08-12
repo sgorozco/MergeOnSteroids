@@ -32,6 +32,12 @@ public interface IDocumentWriter : IDisposable
 {
     bool InDocument { get; }
 
+    /// <summary>
+    /// Folder new documents are saved into. Starts at <see cref="RunOptions.OutputFolder"/>;
+    /// the folder blocks move it while their children run. Setting it creates the folder.
+    /// </summary>
+    string OutputFolder { get; set; }
+
     void Begin(RunOptions options);
     void BeginDocument(string? templatePath);
     void AddParagraph(string text, string style, bool bold, bool italic);

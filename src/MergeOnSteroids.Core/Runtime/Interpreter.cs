@@ -1,3 +1,4 @@
+using System.IO.Compression;
 using MergeOnSteroids.Core.Blocks;
 using MergeOnSteroids.Core.Data;
 using MergeOnSteroids.Core.Expressions;
@@ -44,7 +45,7 @@ public sealed class Interpreter
             ExecuteList(program.Blocks);
             _writer.End();
             _result.Succeeded = true;
-            _log($"Run finished — {_result.OutputFiles.Count} document(s), {_result.Warnings} warning(s).");
+            _log($"Run finished — {_result.OutputFiles.Count} output file(s), {_result.Warnings} warning(s).");
         }
         catch (OperationCanceledException)
         {
@@ -87,7 +88,11 @@ public sealed class Interpreter
             case FilterSourceBlock b: ExecuteFilterSource(b); break;
             case ForEachBlock b: ExecuteForEach(b); break;
             case IfBlock b: ExecuteIf(b); break;
+            case SwitchBlock b: ExecuteSwitch(b); break;
+            case CaseBlock: Warn("A 'case' block only works inside a 'switch' block — skipped."); break;
             case SetVariableBlock b: ExecuteSetVariable(b); break;
+            case MakeDirectoryBlock b: ExecuteMakeDirectory(b); break;
+            case ZipDirectoryBlock b: ExecuteZipDirectory(b); break;
             case NewDocumentBlock b: ExecuteNewDocument(b); break;
             case ParagraphBlock b: ExecuteParagraph(b); break;
             case WordFragmentBlock b: ExecuteWordFragment(b); break;
@@ -197,6 +202,71 @@ public sealed class Interpreter
         ExecuteList(value ? b.Children : b.Else);
     }
 
+    private void ExecuteSwitch(SwitchBlock b)
+    {
+        if (string.IsNullOrWhiteSpace(b.ValueExpression))
+            throw new MosRuntimeException("A 'switch' block has no value to switch on.");
+
+        var value = _compiler.Compile(b.ValueExpression).Eval(_ctx);
+
+        foreach (var child in b.Children)
+        {
+            _options.Cancellation.ThrowIfCancellationRequested();
+            if (child is not CaseBlock c)
+            {
+                Warn($"A 'switch' block holds only 'case' blocks — '{child.DisplayName}' was skipped.");
+                continue;
+            }
+            if (!CaseMatches(c, value)) continue;
+            ExecuteList(c.Children);
+            return;
+        }
+
+        ExecuteList(b.Else);
+    }
+
+    private bool CaseMatches(CaseBlock c, object? value)
+    {
+        foreach (var candidate in SplitTopLevel(c.MatchValues))
+            if (Values.AreEqual(value, _compiler.Compile(candidate).Eval(_ctx)))
+                return true;
+        return false;
+    }
+
+    /// <summary>
+    /// Splits a case's values on the commas that separate them — the ones inside
+    /// string literals or brackets belong to an expression, not to the list.
+    /// </summary>
+    private static List<string> SplitTopLevel(string spec)
+    {
+        var parts = new List<string>();
+        if (string.IsNullOrWhiteSpace(spec)) return parts;
+
+        var depth = 0;
+        char? quote = null;
+        var start = 0;
+        for (var i = 0; i < spec.Length; i++)
+        {
+            var ch = spec[i];
+            if (quote is { } q)
+            {
+                if (ch == q) quote = null;
+            }
+            else switch (ch)
+            {
+                case '"' or '\'' or '“' or '‘': quote = ch switch { '“' => '”', '‘' => '’', _ => ch }; break;
+                case '(' or '[': depth++; break;
+                case ')' or ']': depth--; break;
+                case ',' when depth == 0:
+                    parts.Add(spec[start..i]);
+                    start = i + 1;
+                    break;
+            }
+        }
+        parts.Add(spec[start..]);
+        return parts.Where(p => !string.IsNullOrWhiteSpace(p)).Select(p => p.Trim()).ToList();
+    }
+
     private void ExecuteSetVariable(SetVariableBlock b)
     {
         if (string.IsNullOrWhiteSpace(b.VariableName))
@@ -205,6 +275,90 @@ public sealed class Interpreter
             ? null
             : _compiler.Compile(b.ValueExpression).Eval(_ctx);
         _ctx.SetVariable(b.VariableName.Trim(), value);
+    }
+
+    // ------------------------------------------------------------- folders
+
+    private void ExecuteMakeDirectory(MakeDirectoryBlock b)
+    {
+        var folder = EnterFolder(b);
+        _log($"Folder: {folder}");
+        using (UseFolder(folder)) ExecuteList(b.Children);
+    }
+
+    private void ExecuteZipDirectory(ZipDirectoryBlock b)
+    {
+        var folder = EnterFolder(b);
+        var zipPath = folder + ".zip";
+
+        using (UseFolder(folder)) ExecuteList(b.Children);
+
+        if (File.Exists(zipPath)) File.Delete(zipPath);
+        ZipFile.CreateFromDirectory(folder, zipPath, CompressionLevel.Optimal, includeBaseDirectory: false);
+
+        var zipped = _result.OutputFiles
+            .Where(p => p.StartsWith(folder + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        if (!b.KeepFolder)
+        {
+            Directory.Delete(folder, recursive: true);
+            // those files only exist inside the archive now
+            foreach (var p in zipped) _result.OutputFiles.Remove(p);
+        }
+
+        _result.OutputFiles.Add(zipPath);
+        _log($"Zipped {zipped.Count} document(s) into {zipPath}" +
+             (b.KeepFolder ? " (folder kept)" : ""));
+    }
+
+    /// <summary>Creates the folder a folder block asks for, inside the current one.</summary>
+    private string EnterFolder(FolderBlockBase b)
+    {
+        if (_writer.InDocument)
+            Warn($"A '{b.DisplayName}' block sits inside an open document — the document is saved " +
+                 "where its 'new document' block started, not in this folder.");
+
+        var name = SanitizeRelativePath(Interpolate(b.FolderName));
+        if (name.Length == 0)
+            throw new MosRuntimeException($"A '{b.DisplayName}' block has no folder name.");
+
+        var folder = Path.GetFullPath(Path.Combine(_writer.OutputFolder, name));
+        var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(_options.OutputFolder));
+        if (!folder.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+            throw new MosRuntimeException(
+                $"A '{b.DisplayName}' block would write outside the output folder: {folder}");
+
+        Directory.CreateDirectory(folder);
+        return folder;
+    }
+
+    /// <summary>Saves documents into <paramref name="folder"/> until disposed.</summary>
+    private IDisposable UseFolder(string folder)
+    {
+        var previous = _writer.OutputFolder;
+        _writer.OutputFolder = folder;
+        return new RestoreFolder(_writer, previous);
+    }
+
+    private sealed class RestoreFolder(IDocumentWriter writer, string previous) : IDisposable
+    {
+        public void Dispose() => writer.OutputFolder = previous;
+    }
+
+    /// <summary>
+    /// Turns an interpolated folder name into a safe relative path: keeps the "/"
+    /// levels, drops anything that would climb out, and cleans each segment.
+    /// </summary>
+    private static string SanitizeRelativePath(string name)
+    {
+        var invalid = Path.GetInvalidFileNameChars();
+        var segments = name
+            .Split(['/', '\\'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(s => s is not ("." or ".."))
+            .Select(s => new string(s.Select(c => invalid.Contains(c) ? '_' : c).ToArray()).Trim())
+            .Where(s => s.Length > 0);
+        return string.Join(Path.DirectorySeparatorChar, segments);
     }
 
     private void ExecuteNewDocument(NewDocumentBlock b)

@@ -156,6 +156,54 @@ public sealed class IfBlock : Block
     public override IEnumerable<BlockCollection> ChildLists() => [Children, Else];
 }
 
+/// <summary>
+/// Picks one branch out of many by value. Its children are <see cref="CaseBlock"/>s,
+/// tried in order; the first whose value matches runs, and <see cref="Else"/> runs
+/// when none does.
+/// </summary>
+public sealed class SwitchBlock : Block
+{
+    private string _valueExpression = "";
+
+    /// <summary>The expression whose value the cases are compared against.</summary>
+    public string ValueExpression { get => _valueExpression; set => Set(ref _valueExpression, value); }
+
+    [JsonObjectCreationHandling(JsonObjectCreationHandling.Populate)]
+    public BlockCollection Children { get; }
+
+    [JsonObjectCreationHandling(JsonObjectCreationHandling.Populate)]
+    public BlockCollection Else { get; }
+
+    public SwitchBlock()
+    {
+        Children = new BlockCollection(this, nameof(Children));
+        Else = new BlockCollection(this, nameof(Else));
+    }
+
+    [JsonIgnore] public override string DisplayName => "switch";
+    public override IEnumerable<BlockCollection> ChildLists() => [Children, Else];
+}
+
+/// <summary>One branch of a <see cref="SwitchBlock"/>.</summary>
+public sealed class CaseBlock : Block
+{
+    private string _matchValues = "";
+
+    /// <summary>
+    /// Value this branch answers to, or several separated by commas —
+    /// <c>"MX", "GT"</c>. Each one is an expression, so <c>c.Limit</c> works too.
+    /// </summary>
+    public string MatchValues { get => _matchValues; set => Set(ref _matchValues, value); }
+
+    [JsonObjectCreationHandling(JsonObjectCreationHandling.Populate)]
+    public BlockCollection Children { get; }
+
+    public CaseBlock() => Children = new BlockCollection(this, nameof(Children));
+
+    [JsonIgnore] public override string DisplayName => "case";
+    public override IEnumerable<BlockCollection> ChildLists() => [Children];
+}
+
 public sealed class SetVariableBlock : Block
 {
     private string _variableName = "x";
@@ -165,6 +213,52 @@ public sealed class SetVariableBlock : Block
     public string ValueExpression { get => _valueExpression; set => Set(ref _valueExpression, value); }
 
     [JsonIgnore] public override string DisplayName => "set variable";
+}
+
+// ---------------------------------------------------------------------------
+// Folder blocks
+// ---------------------------------------------------------------------------
+
+/// <summary>
+/// Base for the blocks that put their contents somewhere else on disk: while their
+/// children run, documents are saved into the folder the block made.
+/// </summary>
+public abstract class FolderBlockBase : Block
+{
+    private string _folderName = "";
+
+    /// <summary>
+    /// Folder name, relative to wherever the block sits (so folder blocks nest).
+    /// Supports {expressions}, and may contain "/" to make more than one level.
+    /// </summary>
+    public string FolderName { get => _folderName; set => Set(ref _folderName, value); }
+
+    [JsonObjectCreationHandling(JsonObjectCreationHandling.Populate)]
+    public BlockCollection Children { get; }
+
+    protected FolderBlockBase() => Children = new BlockCollection(this, nameof(Children));
+
+    public override IEnumerable<BlockCollection> ChildLists() => [Children];
+}
+
+/// <summary>Creates a folder and saves everything its children produce inside it.</summary>
+public sealed class MakeDirectoryBlock : FolderBlockBase
+{
+    [JsonIgnore] public override string DisplayName => "make folder";
+}
+
+/// <summary>
+/// Same as <see cref="MakeDirectoryBlock"/>, but when the block finishes the folder
+/// is zipped up next to itself and (unless <see cref="KeepFolder"/>) removed.
+/// </summary>
+public sealed class ZipDirectoryBlock : FolderBlockBase
+{
+    private bool _keepFolder;
+
+    /// <summary>Leave the folder on disk beside the .zip instead of deleting it.</summary>
+    public bool KeepFolder { get => _keepFolder; set => Set(ref _keepFolder, value); }
+
+    [JsonIgnore] public override string DisplayName => "zip folder";
 }
 
 // ---------------------------------------------------------------------------

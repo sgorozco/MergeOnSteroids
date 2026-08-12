@@ -723,6 +723,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         const string control = "BlockControlBrush";
         const string variables = "BlockVariablesBrush";
         const string document = "BlockDocumentBrush";
+        const string folder = "BlockFolderBrush";
 
         return
         [
@@ -746,9 +747,22 @@ public sealed class MainViewModel : INotifyPropertyChanged
                 control, () => new ForEachBlock()),
             new("Control", "if / else", "Runs its contents only when the condition is true.",
                 control, () => new IfBlock { Condition = "" }),
+            new("Control", "switch", "Picks one branch by value: fill it with 'case' blocks, " +
+                "and whatever none of them matched runs under 'otherwise'.",
+                control, () => new SwitchBlock()),
+            new("Control", "case", "One branch of a switch. Answers to a value, or to several " +
+                "separated by commas.",
+                control, () => new CaseBlock()),
 
             new("Variables", "set variable", "Computes a value and stores it under a name.",
                 variables, () => new SetVariableBlock()),
+
+            new("Folders", "make folder", "Creates a folder; every document produced inside the block " +
+                "is saved there. Put it in a loop for one folder per record.",
+                folder, () => new MakeDirectoryBlock { FolderName = "Documents" }),
+            new("Folders", "zip folder", "Same as 'make folder', but when the block ends the folder is " +
+                "zipped up and (unless you keep it) removed — one archive per run, per customer, per month.",
+                folder, () => new ZipDirectoryBlock { FolderName = "Archive" }),
 
             new("Document", "new document", "Starts a Word document; it is saved when the block ends. " +
                 "Put it inside a loop to get one document per record.",

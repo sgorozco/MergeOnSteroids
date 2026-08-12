@@ -23,16 +23,23 @@ public sealed class WordComWriter : IDocumentWriter
     private const int WdCollapseEnd = 0;
 
     private readonly Dictionary<string, string> _fragmentXmlCache = new(StringComparer.OrdinalIgnoreCase);
-    private RunOptions _options = new();
+    private RunOptions _options = new();          // kept for resolving template paths
+    private string _outputFolder = Environment.CurrentDirectory;
     private dynamic? _app;
     private dynamic? _doc;
 
     public bool InDocument => _doc is not null;
 
+    public string OutputFolder
+    {
+        get => _outputFolder;
+        set { _outputFolder = value; Directory.CreateDirectory(value); }
+    }
+
     public void Begin(RunOptions options)
     {
         _options = options;
-        Directory.CreateDirectory(options.OutputFolder);
+        OutputFolder = options.OutputFolder;
 
         var wordType = Type.GetTypeFromProgID("Word.Application")
             ?? throw new InvalidOperationException(
@@ -214,7 +221,7 @@ public sealed class WordComWriter : IDocumentWriter
     {
         var doc = RequireDoc();
         var name = string.IsNullOrWhiteSpace(fileNameWithoutExtension) ? "Document" : fileNameWithoutExtension;
-        var path = Path.Combine(_options.OutputFolder, name + ".docx");
+        var path = Path.Combine(OutputFolder, name + ".docx");
         doc.SaveAs2(path, WdFormatXMLDocument);
         doc.Close(0); // wdDoNotSaveChanges — already saved
         ReleaseCom(doc);
