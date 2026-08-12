@@ -96,6 +96,10 @@ re-read it.
 
 - Relative file paths (data sources, templates, fragments, output folder) resolve against
   the folder containing the `.mos.json` program — keep the program next to its data.
+- The editor has a light and a dark theme; the button at the right end of the toolbar
+  switches between them. The first run follows the Windows app mode, and the choice is
+  remembered in `%APPDATA%\MergeOnSteroids\settings.json`. Fragment and paragraph previews
+  stay on white "paper" in both themes, since they show what Word will print.
 - Word generation requires desktop Microsoft Word (any recent version; the writer uses
   late-bound OLE automation, no interop assemblies).
 - Database query interpolation inlines values into the SQL text — only use it with trusted

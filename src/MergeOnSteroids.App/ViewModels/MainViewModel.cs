@@ -5,7 +5,6 @@ using System.IO;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Windows;
-using System.Windows.Media;
 using System.Windows.Threading;
 using MergeOnSteroids.App.Common;
 using MergeOnSteroids.Core;
@@ -60,6 +59,9 @@ public sealed class MainViewModel : INotifyPropertyChanged
         RefreshFragmentCommand = new ParamRelayCommand(
             p => RefreshFragment(p as WordFragmentBlock),
             p => !IsRunning && p is WordFragmentBlock { FragmentFile.Length: > 0 });
+        ToggleThemeCommand = new RelayCommand(ThemeManager.Toggle);
+
+        ThemeManager.ThemeChanged += OnThemeChanged;
 
         LoadProgram(new ProgramModel(), null);
     }
@@ -552,10 +554,11 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     private static List<PaletteItem> BuildPalette()
     {
-        var data = Brush("#59C059");
-        var control = Brush("#FFAB19");
-        var variables = Brush("#FF8C1A");
-        var document = Brush("#4C97FF");
+        // resource keys, not colors: the chips follow the active theme
+        const string data = "BlockDataBrush";
+        const string control = "BlockControlBrush";
+        const string variables = "BlockVariablesBrush";
+        const string document = "BlockDocumentBrush";
 
         return
         [
@@ -592,11 +595,17 @@ public sealed class MainViewModel : INotifyPropertyChanged
         ];
     }
 
-    private static SolidColorBrush Brush(string hex)
+    // ------------------------------------------------------------------ theme
+
+    public RelayCommand ToggleThemeCommand { get; }
+
+    /// <summary>Caption of the toolbar toggle — it names the theme you would switch to.</summary>
+    public string ThemeToggleText => ThemeManager.IsDark ? "☀ Light" : "🌙 Dark";
+
+    private void OnThemeChanged()
     {
-        var brush = new SolidColorBrush((Color)ColorConverter.ConvertFromString(hex));
-        brush.Freeze();
-        return brush;
+        foreach (var item in Palette) item.RefreshBrush();
+        OnPropertyChanged(nameof(ThemeToggleText));
     }
 
     // ------------------------------------------------------------------ INPC

@@ -5,7 +5,8 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
         Title="{Binding WindowTitle}" Height="780" Width="1320"
-        Background="#FFFFFF"
+        Background="{DynamicResource WindowBackgroundBrush}"
+        Foreground="{DynamicResource ForegroundBrush}"
         PreviewKeyDown="Window_PreviewKeyDown"
         Closing="Window_Closing">
 
@@ -19,7 +20,7 @@
     </Window.InputBindings>
 
     <Window.Resources>
-        <Style x:Key="ToolButton" TargetType="Button">
+        <Style x:Key="ToolButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
             <Setter Property="Padding" Value="10,5"/>
             <Setter Property="Margin" Value="2,0"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
@@ -29,33 +30,43 @@
     <DockPanel>
 
         <!-- ================================ toolbar ================================ -->
-        <Border DockPanel.Dock="Top" Background="#F5F6F8" BorderBrush="#DDDFE4" BorderThickness="0,0,0,1" Padding="8,6">
-            <WrapPanel VerticalAlignment="Center">
-                <Button Style="{StaticResource ToolButton}" Command="{Binding NewCommand}" Content="New"/>
-                <Button Style="{StaticResource ToolButton}" Command="{Binding OpenCommand}" Content="Open…"/>
-                <Button Style="{StaticResource ToolButton}" Command="{Binding SaveCommand}" Content="Save"/>
-                <Button Style="{StaticResource ToolButton}" Command="{Binding SaveAsCommand}" Content="Save As…"/>
-                <Separator Margin="6,0" Width="1" Background="#CCC" Height="22"/>
-                <Button Style="{StaticResource ToolButton}" Command="{Binding LoadSampleCommand}" Content="Load sample"/>
-                <Separator Margin="6,0" Width="1" Background="#CCC" Height="22"/>
-                <Button Style="{StaticResource ToolButton}" Command="{Binding RunPreviewCommand}"
-                        Content="▶ Preview run" ToolTip="Fast text-only run, no Word needed (F5)"/>
-                <Button Style="{StaticResource ToolButton}" Command="{Binding RunWordCommand}"
-                        Content="▶ Generate in Word" FontWeight="SemiBold"
-                        ToolTip="Produce real .docx files through Microsoft Word (F6)"/>
-                <Button Style="{StaticResource ToolButton}" Command="{Binding StopCommand}" Content="■ Stop"/>
-                <CheckBox IsChecked="{Binding ShowWordWindow}" Content="show Word while generating"
-                          VerticalAlignment="Center" Margin="8,0"/>
-                <Separator Margin="6,0" Width="1" Background="#CCC" Height="22"/>
-                <Button Style="{StaticResource ToolButton}" Command="{Binding OpenOutputFolderCommand}"
-                        Content="Open output folder"/>
-            </WrapPanel>
+        <Border DockPanel.Dock="Top"
+                Background="{DynamicResource ToolbarBackgroundBrush}"
+                BorderBrush="{DynamicResource ToolbarBorderBrush}"
+                BorderThickness="0,0,0,1" Padding="8,6">
+            <DockPanel>
+                <Button DockPanel.Dock="Right" Style="{StaticResource ToolButton}"
+                        Command="{Binding ToggleThemeCommand}" Content="{Binding ThemeToggleText}"
+                        MinWidth="86" Margin="8,0,0,0"
+                        ToolTip="Switch between the light and dark theme"/>
+                <WrapPanel VerticalAlignment="Center">
+                    <Button Style="{StaticResource ToolButton}" Command="{Binding NewCommand}" Content="New"/>
+                    <Button Style="{StaticResource ToolButton}" Command="{Binding OpenCommand}" Content="Open…"/>
+                    <Button Style="{StaticResource ToolButton}" Command="{Binding SaveCommand}" Content="Save"/>
+                    <Button Style="{StaticResource ToolButton}" Command="{Binding SaveAsCommand}" Content="Save As…"/>
+                    <Separator Margin="6,0" Width="1" Background="{DynamicResource SeparatorBrush}" Height="22"/>
+                    <Button Style="{StaticResource ToolButton}" Command="{Binding LoadSampleCommand}" Content="Load sample"/>
+                    <Separator Margin="6,0" Width="1" Background="{DynamicResource SeparatorBrush}" Height="22"/>
+                    <Button Style="{StaticResource ToolButton}" Command="{Binding RunPreviewCommand}"
+                            Content="▶ Preview run" ToolTip="Fast text-only run, no Word needed (F5)"/>
+                    <Button Style="{StaticResource ToolButton}" Command="{Binding RunWordCommand}"
+                            Content="▶ Generate in Word" FontWeight="SemiBold"
+                            ToolTip="Produce real .docx files through Microsoft Word (F6)"/>
+                    <Button Style="{StaticResource ToolButton}" Command="{Binding StopCommand}" Content="■ Stop"/>
+                    <CheckBox IsChecked="{Binding ShowWordWindow}" Content="show Word while generating"
+                              VerticalAlignment="Center" Margin="8,0"/>
+                    <Separator Margin="6,0" Width="1" Background="{DynamicResource SeparatorBrush}" Height="22"/>
+                    <Button Style="{StaticResource ToolButton}" Command="{Binding OpenOutputFolderCommand}"
+                            Content="Open output folder"/>
+                </WrapPanel>
+            </DockPanel>
         </Border>
 
         <!-- ================================ status bar ================================ -->
         <StatusBar DockPanel.Dock="Bottom">
             <StatusBarItem>
-                <TextBlock Text="{Binding CurrentFilePath, TargetNullValue='(not saved yet — save the program next to your data files so relative paths work)'}"/>
+                <TextBlock Foreground="{DynamicResource MutedForegroundBrush}"
+                           Text="{Binding CurrentFilePath, TargetNullValue='(not saved yet — save the program next to your data files so relative paths work)'}"/>
             </StatusBarItem>
         </StatusBar>
 
@@ -70,9 +81,9 @@
             </Grid.ColumnDefinitions>
 
             <!-- palette -->
-            <DockPanel Grid.Column="0" Background="#FAFBFC">
+            <DockPanel Grid.Column="0" Background="{DynamicResource PaletteBackgroundBrush}">
                 <TextBlock DockPanel.Dock="Top" Text="Blocks — drag onto the canvas"
-                           Margin="10,8" FontWeight="SemiBold" Foreground="#555"/>
+                           Margin="10,8" FontWeight="SemiBold" Foreground="{DynamicResource MutedForegroundBrush}"/>
                 <ListBox x:Name="PaletteList"
                          ItemsSource="{Binding PaletteView}"
                          Background="Transparent" BorderThickness="0"
@@ -84,7 +95,8 @@
                         <GroupStyle>
                             <GroupStyle.HeaderTemplate>
                                 <DataTemplate>
-                                    <TextBlock Text="{Binding Name}" FontWeight="Bold" Foreground="#777"
+                                    <TextBlock Text="{Binding Name}" FontWeight="Bold"
+                                               Foreground="{DynamicResource SubtleForegroundBrush}"
                                                Margin="4,10,0,3" FontSize="11.5"/>
                                 </DataTemplate>
                             </GroupStyle.HeaderTemplate>
@@ -94,30 +106,31 @@
                         <DataTemplate>
                             <Border Background="{Binding Brush}" CornerRadius="6" Padding="9,5" Margin="0,1"
                                     HorizontalAlignment="Left" ToolTip="{Binding Description}">
-                                <TextBlock Text="{Binding Title}" Foreground="White" FontWeight="SemiBold" FontSize="12"/>
+                                <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="12"
+                                           Foreground="{DynamicResource BlockLabelForegroundBrush}"/>
                             </Border>
                         </DataTemplate>
                     </ListBox.ItemTemplate>
                 </ListBox>
             </DockPanel>
 
-            <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch" Background="#E4E6EA"/>
+            <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch"/>
 
             <!-- canvas -->
-            <Border Grid.Column="2" Background="#E9EDF2">
+            <Border Grid.Column="2" Background="{DynamicResource CanvasBackgroundBrush}">
                 <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
                               Padding="16,12" Focusable="False">
                     <StackPanel>
                         <!-- program "hat" block -->
-                        <Border Background="#5B6470" CornerRadius="10,10,6,6" Padding="12,8"
+                        <Border Background="{DynamicResource HatBlockBrush}" CornerRadius="10,10,6,6" Padding="12,8"
                                 HorizontalAlignment="Left" Margin="0,0,0,4">
                             <WrapPanel>
-                                <TextBlock Text="▶ program" Foreground="White" FontWeight="Bold"
-                                           VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                <TextBlock Text="▶ program" Foreground="{DynamicResource BlockLabelForegroundBrush}"
+                                           FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,6,0"/>
                                 <TextBox Style="{StaticResource BlockInput}" MinWidth="170"
                                          Text="{Binding Program.Name, UpdateSourceTrigger=PropertyChanged}"/>
-                                <TextBlock Text="output folder" Foreground="White" FontWeight="SemiBold"
-                                           VerticalAlignment="Center" Margin="10,0,6,0"/>
+                                <TextBlock Text="output folder" Foreground="{DynamicResource BlockLabelForegroundBrush}"
+                                           FontWeight="SemiBold" VerticalAlignment="Center" Margin="10,0,6,0"/>
                                 <TextBox Style="{StaticResource BlockInput}" MinWidth="150"
                                          Text="{Binding Program.OutputFolder, UpdateSourceTrigger=PropertyChanged}"
                                          ToolTip="Where documents are saved. Relative paths resolve against the program file."/>
@@ -135,10 +148,10 @@
                 </ScrollViewer>
             </Border>
 
-            <GridSplitter Grid.Column="3" Width="5" HorizontalAlignment="Stretch" Background="#E4E6EA"/>
+            <GridSplitter Grid.Column="3" Width="5" HorizontalAlignment="Stretch"/>
 
             <!-- run panel -->
-            <TabControl Grid.Column="4" BorderThickness="0,1,0,0" Background="White">
+            <TabControl Grid.Column="4" BorderThickness="0,1,0,0">
                 <TabItem Header="Run log">
                     <DockPanel>
                         <Button DockPanel.Dock="Top" Content="Clear" HorizontalAlignment="Right"
@@ -146,16 +159,18 @@
                         <TextBox x:Name="LogBox" Text="{Binding LogText, Mode=OneWay}" IsReadOnly="True"
                                  FontFamily="Consolas" FontSize="12" TextWrapping="Wrap"
                                  VerticalScrollBarVisibility="Auto" BorderThickness="0"
+                                 Background="{DynamicResource PanelBackgroundBrush}"
+                                 Foreground="{DynamicResource ForegroundBrush}"
                                  TextChanged="LogBox_TextChanged"/>
                     </DockPanel>
                 </TabItem>
                 <TabItem Header="Documents">
                     <DockPanel>
-                        <TextBlock DockPanel.Dock="Top" Margin="8,6" Foreground="#666"
+                        <TextBlock DockPanel.Dock="Top" Margin="8,6" Foreground="{DynamicResource MutedForegroundBrush}"
                                    Text="Files produced by the last run — double-click to open."/>
                         <ListBox ItemsSource="{Binding OutputFiles}"
                                  MouseDoubleClick="OutputFiles_MouseDoubleClick"
-                                 BorderThickness="0" FontSize="12"/>
+                                 Background="Transparent" BorderThickness="0" FontSize="12"/>
                     </DockPanel>
                 </TabItem>
             </TabControl>

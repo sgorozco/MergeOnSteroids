@@ -1,0 +1,77 @@
+<!--
+    Light theme.  Every key defined here MUST also exist in Dark.xaml — the two
+    dictionaries are swapped in and out of Application.Resources by ThemeManager,
+    so everything that references them does so with {DynamicResource}.
+-->
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- ============================== surfaces ============================== -->
+    <SolidColorBrush x:Key="WindowBackgroundBrush" Color="#FFFFFF"/>
+    <SolidColorBrush x:Key="ToolbarBackgroundBrush" Color="#F5F6F8"/>
+    <SolidColorBrush x:Key="ToolbarBorderBrush" Color="#DDDFE4"/>
+    <SolidColorBrush x:Key="PaletteBackgroundBrush" Color="#FAFBFC"/>
+    <SolidColorBrush x:Key="CanvasBackgroundBrush" Color="#E9EDF2"/>
+    <SolidColorBrush x:Key="PanelBackgroundBrush" Color="#FFFFFF"/>
+    <SolidColorBrush x:Key="StatusBarBackgroundBrush" Color="#F5F6F8"/>
+    <SolidColorBrush x:Key="SplitterBrush" Color="#E4E6EA"/>
+    <SolidColorBrush x:Key="SeparatorBrush" Color="#CCCFD6"/>
+
+    <!-- ============================== text ============================== -->
+    <SolidColorBrush x:Key="ForegroundBrush" Color="#1F2430"/>
+    <SolidColorBrush x:Key="MutedForegroundBrush" Color="#5A6172"/>
+    <SolidColorBrush x:Key="SubtleForegroundBrush" Color="#828A98"/>
+
+    <!-- ============================== accent ============================== -->
+    <Color x:Key="AccentColor">#3B82F6</Color>
+    <SolidColorBrush x:Key="AccentBrush" Color="#3B82F6"/>
+    <SolidColorBrush x:Key="AccentForegroundBrush" Color="#FFFFFF"/>
+
+    <!-- ============================== inputs & controls ============================== -->
+    <SolidColorBrush x:Key="InputBackgroundBrush" Color="#FFFFFF"/>
+    <SolidColorBrush x:Key="InputForegroundBrush" Color="#454B5E"/>
+    <SolidColorBrush x:Key="InputBorderBrush" Color="#33000000"/>
+
+    <SolidColorBrush x:Key="ControlBackgroundBrush" Color="#FFFFFF"/>
+    <SolidColorBrush x:Key="ControlBorderBrush" Color="#C9CDD6"/>
+    <SolidColorBrush x:Key="ControlHoverBackgroundBrush" Color="#EDF3FC"/>
+    <SolidColorBrush x:Key="ControlPressedBackgroundBrush" Color="#DBE6F7"/>
+    <SolidColorBrush x:Key="ControlDisabledForegroundBrush" Color="#A3A9B5"/>
+    <SolidColorBrush x:Key="GlyphBrush" Color="#5A6172"/>
+
+    <SolidColorBrush x:Key="ItemHoverBackgroundBrush" Color="#E8EEF9"/>
+    <SolidColorBrush x:Key="ItemSelectedBackgroundBrush" Color="#D6E4FA"/>
+
+    <SolidColorBrush x:Key="PopupBackgroundBrush" Color="#FFFFFF"/>
+    <SolidColorBrush x:Key="PopupBorderBrush" Color="#C9CDD6"/>
+
+    <SolidColorBrush x:Key="ScrollBarThumbBrush" Color="#C3C8D2"/>
+    <SolidColorBrush x:Key="ScrollBarThumbHoverBrush" Color="#A2A9B6"/>
+
+    <!-- ============================== "paper": how Word will render it ============================== -->
+    <!-- kept white in both themes — these previews stand for the printed page -->
+    <SolidColorBrush x:Key="PaperBackgroundBrush" Color="#FFFFFF"/>
+    <SolidColorBrush x:Key="PaperForegroundBrush" Color="#333333"/>
+    <SolidColorBrush x:Key="PaperMutedForegroundBrush" Color="#888888"/>
+    <SolidColorBrush x:Key="PaperBorderBrush" Color="#22000000"/>
+
+    <!-- ============================== blocks ============================== -->
+    <SolidColorBrush x:Key="BlockDataBrush" Color="#59C059"/>
+    <SolidColorBrush x:Key="BlockDataBorderBrush" Color="#389438"/>
+    <SolidColorBrush x:Key="BlockControlBrush" Color="#FFAB19"/>
+    <SolidColorBrush x:Key="BlockControlBorderBrush" Color="#C68C17"/>
+    <SolidColorBrush x:Key="BlockVariablesBrush" Color="#FF8C1A"/>
+    <SolidColorBrush x:Key="BlockVariablesBorderBrush" Color="#DB6E00"/>
+    <SolidColorBrush x:Key="BlockDocumentBrush" Color="#4C97FF"/>
+    <SolidColorBrush x:Key="BlockDocumentBorderBrush" Color="#3373CC"/>
+
+    <SolidColorBrush x:Key="HatBlockBrush" Color="#5B6470"/>
+    <SolidColorBrush x:Key="BlockLabelForegroundBrush" Color="#FFFFFF"/>
+    <SolidColorBrush x:Key="BlockSelectionBrush" Color="#FFFFFF"/>
+    <SolidColorBrush x:Key="BlockNestBackgroundBrush" Color="#1A000000"/>
+    <SolidColorBrush x:Key="BlockNestBorderBrush" Color="#59FFFFFF"/>
+
+    <DropShadowEffect x:Key="BlockSelectionGlow" Color="#3B82F6"
+                      BlurRadius="10" ShadowDepth="0" Opacity="0.9"/>
+
+</ResourceDictionary>

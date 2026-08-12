@@ -4,16 +4,18 @@
         Title="Editing in Word"
         Width="420" SizeToContent="Height" ResizeMode="NoResize"
         WindowStartupLocation="CenterOwner" ShowInTaskbar="False"
+        Background="{DynamicResource WindowBackgroundBrush}"
+        Foreground="{DynamicResource ForegroundBrush}"
         Topmost="True">
     <StackPanel Margin="18">
-        <TextBlock TextWrapping="Wrap" FontSize="13">
+        <TextBlock TextWrapping="Wrap" FontSize="13" Foreground="{DynamicResource ForegroundBrush}">
             The fragment is now open in <Bold>Microsoft Word</Bold>.
         </TextBlock>
-        <TextBlock TextWrapping="Wrap" Margin="0,8,0,0" Foreground="#555">
+        <TextBlock TextWrapping="Wrap" Margin="0,8,0,0" Foreground="{DynamicResource MutedForegroundBrush}">
             Write and format the paragraphs there — styles, colors, bullets, anything.
             Use {expressions} where data should be inserted, e.g. {c.Company}.
         </TextBlock>
-        <TextBlock TextWrapping="Wrap" Margin="0,8,0,0" Foreground="#555">
+        <TextBlock TextWrapping="Wrap" Margin="0,8,0,0" Foreground="{DynamicResource MutedForegroundBrush}">
             When you are done, come back here and click <Bold>Save &amp; return</Bold>.
             Do not close the Word document yourself.
         </TextBlock>

@@ -4,15 +4,8 @@
                     xmlns:controls="clr-namespace:MergeOnSteroids.App.Controls"
                     xmlns:common="clr-namespace:MergeOnSteroids.App.Common">
 
-    <!-- ============================== palette / block colors ============================== -->
-    <SolidColorBrush x:Key="DataBrush" Color="#59C059"/>
-    <SolidColorBrush x:Key="DataBorderBrush" Color="#389438"/>
-    <SolidColorBrush x:Key="ControlBrush" Color="#FFAB19"/>
-    <SolidColorBrush x:Key="ControlBorderBrush" Color="#C68C17"/>
-    <SolidColorBrush x:Key="VariablesBrush" Color="#FF8C1A"/>
-    <SolidColorBrush x:Key="VariablesBorderBrush" Color="#DB6E00"/>
-    <SolidColorBrush x:Key="DocumentBrush" Color="#4C97FF"/>
-    <SolidColorBrush x:Key="DocumentBorderBrush" Color="#3373CC"/>
+    <!-- Block colors live in Themes/Light.xaml and Themes/Dark.xaml (keys Block*Brush)
+         and are referenced with DynamicResource so the theme toggle repaints them. -->
 
     <common:StyleFontSizeConverter x:Key="StyleFontSize"/>
     <common:StyleWeightConverter x:Key="StyleWeight"/>
@@ -22,7 +15,7 @@
     <!-- ============================== small shared styles ============================== -->
 
     <Style x:Key="BlockLabel" TargetType="TextBlock">
-        <Setter Property="Foreground" Value="White"/>
+        <Setter Property="Foreground" Value="{DynamicResource BlockLabelForegroundBrush}"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
         <Setter Property="FontSize" Value="12"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
@@ -30,14 +23,16 @@
     </Style>
 
     <Style x:Key="BlockInput" TargetType="TextBox">
-        <Setter Property="Foreground" Value="#454B5E"/>
+        <Setter Property="Foreground" Value="{DynamicResource InputForegroundBrush}"/>
+        <Setter Property="CaretBrush" Value="{DynamicResource InputForegroundBrush}"/>
+        <Setter Property="SelectionBrush" Value="{DynamicResource AccentBrush}"/>
         <Setter Property="FontSize" Value="12"/>
         <Setter Property="MinWidth" Value="56"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
         <Setter Property="Margin" Value="2,1"/>
         <Setter Property="Padding" Value="6,2"/>
-        <Setter Property="Background" Value="White"/>
-        <Setter Property="BorderBrush" Value="#33000000"/>
+        <Setter Property="Background" Value="{DynamicResource InputBackgroundBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource InputBorderBrush}"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="TextBox">
@@ -50,7 +45,7 @@
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsKeyboardFocused" Value="True">
-                            <Setter Property="BorderBrush" Value="#3B82F6"/>
+                            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -65,7 +60,7 @@
         <Setter Property="AcceptsReturn" Value="True"/>
     </Style>
 
-    <Style x:Key="SourceCombo" TargetType="ComboBox">
+    <Style x:Key="SourceCombo" TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}">
         <Setter Property="IsEditable" Value="True"/>
         <Setter Property="MinWidth" Value="96"/>
         <Setter Property="FontSize" Value="12"/>
@@ -75,8 +70,8 @@
                 Value="{Binding DataContext.AvailableSources, RelativeSource={RelativeSource AncestorType=Window}}"/>
     </Style>
 
-    <Style x:Key="BlockCheck" TargetType="CheckBox">
-        <Setter Property="Foreground" Value="White"/>
+    <Style x:Key="BlockCheck" TargetType="CheckBox" BasedOn="{StaticResource {x:Type CheckBox}}">
+        <Setter Property="Foreground" Value="{DynamicResource BlockLabelForegroundBrush}"/>
         <Setter Property="FontSize" Value="12"/>
         <Setter Property="VerticalAlignment" Value="Center"/>
         <Setter Property="Margin" Value="5,0"/>
@@ -95,7 +90,7 @@
                     </Grid>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsActive" Value="True">
-                            <Setter TargetName="Bar" Property="Background" Value="#3B82F6"/>
+                            <Setter TargetName="Bar" Property="Background" Value="{DynamicResource AccentBrush}"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -122,12 +117,8 @@
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsSelected" Value="True">
-                            <Setter TargetName="Body" Property="BorderBrush" Value="White"/>
-                            <Setter TargetName="Body" Property="Effect">
-                                <Setter.Value>
-                                    <DropShadowEffect Color="#3B82F6" BlurRadius="10" ShadowDepth="0" Opacity="0.9"/>
-                                </Setter.Value>
-                            </Setter>
+                            <Setter TargetName="Body" Property="BorderBrush" Value="{DynamicResource BlockSelectionBrush}"/>
+                            <Setter TargetName="Body" Property="Effect" Value="{DynamicResource BlockSelectionGlow}"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -156,8 +147,8 @@
     <!-- ============================== data source blocks ============================== -->
 
     <DataTemplate DataType="{x:Type b:CsvSourceBlock}">
-        <controls:BlockChrome BlockBrush="{StaticResource DataBrush}"
-                              BlockBorderBrush="{StaticResource DataBorderBrush}">
+        <controls:BlockChrome BlockBrush="{DynamicResource BlockDataBrush}"
+                              BlockBorderBrush="{DynamicResource BlockDataBorderBrush}">
             <WrapPanel>
                 <TextBlock Style="{StaticResource BlockLabel}" Text="open CSV"/>
                 <TextBox Style="{StaticResource BlockInput}"
@@ -172,8 +163,8 @@
     </DataTemplate>
 
     <DataTemplate DataType="{x:Type b:ExcelSourceBlock}">
-        <controls:BlockChrome BlockBrush="{StaticResource DataBrush}"
-                              BlockBorderBrush="{StaticResource DataBorderBrush}">
+        <controls:BlockChrome BlockBrush="{DynamicResource BlockDataBrush}"
+                              BlockBorderBrush="{DynamicResource BlockDataBorderBrush}">
             <WrapPanel>
                 <TextBlock Style="{StaticResource BlockLabel}" Text="open Excel"/>
                 <TextBox Style="{StaticResource BlockInput}"
@@ -191,8 +182,8 @@
     </DataTemplate>
 
     <DataTemplate DataType="{x:Type b:DatabaseSourceBlock}">
-        <controls:BlockChrome BlockBrush="{StaticResource DataBrush}"
-                              BlockBorderBrush="{StaticResource DataBorderBrush}">
+        <controls:BlockChrome BlockBrush="{DynamicResource BlockDataBrush}"
+                              BlockBorderBrush="{DynamicResource BlockDataBorderBrush}">
             <StackPanel>
                 <WrapPanel>
                     <TextBlock Style="{StaticResource BlockLabel}" Text="open database"/>
@@ -222,8 +213,8 @@
     </DataTemplate>
 
     <DataTemplate DataType="{x:Type b:FilterSourceBlock}">
-        <controls:BlockChrome BlockBrush="{StaticResource DataBrush}"
-                              BlockBorderBrush="{StaticResource DataBorderBrush}">
+        <controls:BlockChrome BlockBrush="{DynamicResource BlockDataBrush}"
+                              BlockBorderBrush="{DynamicResource BlockDataBorderBrush}">
             <WrapPanel>
                 <TextBlock Style="{StaticResource BlockLabel}" Text="filter"/>
                 <ComboBox Style="{StaticResource SourceCombo}"
@@ -242,8 +233,8 @@
     <!-- ============================== control blocks ============================== -->
 
     <DataTemplate DataType="{x:Type b:ForEachBlock}">
-        <controls:BlockChrome BlockBrush="{StaticResource ControlBrush}"
-                              BlockBorderBrush="{StaticResource ControlBorderBrush}">
+        <controls:BlockChrome BlockBrush="{DynamicResource BlockControlBrush}"
+                              BlockBorderBrush="{DynamicResource BlockControlBorderBrush}">
             <StackPanel>
                 <WrapPanel>
                     <TextBlock Style="{StaticResource BlockLabel}" Text="for each"/>
@@ -255,7 +246,9 @@
                               Text="{Binding SourceName, UpdateSourceTrigger=PropertyChanged}"/>
                 </WrapPanel>
                 <Border Margin="6,5,0,0" Padding="8,2,4,2" CornerRadius="0,0,0,8"
-                        BorderThickness="5,0,0,5" BorderBrush="#59FFFFFF" Background="#1A000000">
+                        BorderThickness="5,0,0,5"
+                        BorderBrush="{DynamicResource BlockNestBorderBrush}"
+                        Background="{DynamicResource BlockNestBackgroundBrush}">
                     <ContentControl Content="{Binding Children}"
                                     ContentTemplate="{StaticResource ChildListTemplate}" Focusable="False"/>
                 </Border>
@@ -264,8 +257,8 @@
     </DataTemplate>
 
     <DataTemplate DataType="{x:Type b:IfBlock}">
-        <controls:BlockChrome BlockBrush="{StaticResource ControlBrush}"
-                              BlockBorderBrush="{StaticResource ControlBorderBrush}">
+        <controls:BlockChrome BlockBrush="{DynamicResource BlockControlBrush}"
+                              BlockBorderBrush="{DynamicResource BlockControlBorderBrush}">
             <StackPanel>
                 <WrapPanel>
                     <TextBlock Style="{StaticResource BlockLabel}" Text="if"/>
@@ -275,13 +268,17 @@
                     <TextBlock Style="{StaticResource BlockLabel}" Text="then"/>
                 </WrapPanel>
                 <Border Margin="6,5,0,0" Padding="8,2,4,2"
-                        BorderThickness="5,0,0,0" BorderBrush="#59FFFFFF" Background="#1A000000">
+                        BorderThickness="5,0,0,0"
+                        BorderBrush="{DynamicResource BlockNestBorderBrush}"
+                        Background="{DynamicResource BlockNestBackgroundBrush}">
                     <ContentControl Content="{Binding Children}"
                                     ContentTemplate="{StaticResource ChildListTemplate}" Focusable="False"/>
                 </Border>
                 <TextBlock Style="{StaticResource BlockLabel}" Text="else" Margin="6,4,0,0"/>
                 <Border Margin="6,2,0,0" Padding="8,2,4,2" CornerRadius="0,0,0,8"
-                        BorderThickness="5,0,0,5" BorderBrush="#59FFFFFF" Background="#1A000000">
+                        BorderThickness="5,0,0,5"
+                        BorderBrush="{DynamicResource BlockNestBorderBrush}"
+                        Background="{DynamicResource BlockNestBackgroundBrush}">
                     <ContentControl Content="{Binding Else}"
                                     ContentTemplate="{StaticResource ChildListTemplate}" Focusable="False"/>
                 </Border>
@@ -292,8 +289,8 @@
     <!-- ============================== variables ============================== -->
 
     <DataTemplate DataType="{x:Type b:SetVariableBlock}">
-        <controls:BlockChrome BlockBrush="{StaticResource VariablesBrush}"
-                              BlockBorderBrush="{StaticResource VariablesBorderBrush}">
+        <controls:BlockChrome BlockBrush="{DynamicResource BlockVariablesBrush}"
+                              BlockBorderBrush="{DynamicResource BlockVariablesBorderBrush}">
             <WrapPanel>
                 <TextBlock Style="{StaticResource BlockLabel}" Text="set"/>
                 <TextBox Style="{StaticResource BlockInput}"
@@ -309,8 +306,8 @@
     <!-- ============================== document blocks ============================== -->
 
     <DataTemplate DataType="{x:Type b:NewDocumentBlock}">
-        <controls:BlockChrome BlockBrush="{StaticResource DocumentBrush}"
-                              BlockBorderBrush="{StaticResource DocumentBorderBrush}">
+        <controls:BlockChrome BlockBrush="{DynamicResource BlockDocumentBrush}"
+                              BlockBorderBrush="{DynamicResource BlockDocumentBorderBrush}">
             <StackPanel>
                 <WrapPanel>
                     <TextBlock Style="{StaticResource BlockLabel}" Text="📄 new document, save as"/>
@@ -323,7 +320,9 @@
                              ToolTip="Optional .dotx/.docx the document starts from (empty = blank)"/>
                 </WrapPanel>
                 <Border Margin="6,5,0,0" Padding="8,2,4,2" CornerRadius="0,0,0,8"
-                        BorderThickness="5,0,0,5" BorderBrush="#66FFFFFF" Background="#14000000">
+                        BorderThickness="5,0,0,5"
+                        BorderBrush="{DynamicResource BlockNestBorderBrush}"
+                        Background="{DynamicResource BlockNestBackgroundBrush}">
                     <ContentControl Content="{Binding Children}"
                                     ContentTemplate="{StaticResource ChildListTemplate}" Focusable="False"/>
                 </Border>
@@ -332,8 +331,8 @@
     </DataTemplate>
 
     <DataTemplate DataType="{x:Type b:ParagraphBlock}">
-        <controls:BlockChrome BlockBrush="{StaticResource DocumentBrush}"
-                              BlockBorderBrush="{StaticResource DocumentBorderBrush}">
+        <controls:BlockChrome BlockBrush="{DynamicResource BlockDocumentBrush}"
+                              BlockBorderBrush="{DynamicResource BlockDocumentBorderBrush}">
             <StackPanel>
                 <WrapPanel>
                     <TextBlock Style="{StaticResource BlockLabel}" Text="add paragraph"/>
@@ -348,9 +347,11 @@
                          Margin="2,3,2,0"
                          ToolTip="Paragraph text. {expressions} insert data, e.g. Dear {c.Contact},"/>
                 <!-- live preview rendered the way Word will style it -->
-                <Border Background="White" CornerRadius="4" Padding="10,5" Margin="2,4,2,0" MaxWidth="460"
-                        HorizontalAlignment="Left" BorderBrush="#22000000" BorderThickness="1">
-                    <TextBlock Text="{Binding TextTemplate}" TextWrapping="Wrap" Foreground="#333333"
+                <Border Background="{DynamicResource PaperBackgroundBrush}" CornerRadius="4" Padding="10,5" Margin="2,4,2,0"
+                        MaxWidth="460" HorizontalAlignment="Left"
+                        BorderBrush="{DynamicResource PaperBorderBrush}" BorderThickness="1">
+                    <TextBlock Text="{Binding TextTemplate}" TextWrapping="Wrap"
+                               Foreground="{DynamicResource PaperForegroundBrush}"
                                FontFamily="Calibri"
                                FontSize="{Binding Style, Converter={StaticResource StyleFontSize}}">
                         <TextBlock.FontWeight>
@@ -372,8 +373,8 @@
     </DataTemplate>
 
     <DataTemplate DataType="{x:Type b:WordFragmentBlock}">
-        <controls:BlockChrome BlockBrush="{StaticResource DocumentBrush}"
-                              BlockBorderBrush="{StaticResource DocumentBorderBrush}">
+        <controls:BlockChrome BlockBrush="{DynamicResource BlockDocumentBrush}"
+                              BlockBorderBrush="{DynamicResource BlockDocumentBorderBrush}">
             <StackPanel>
                 <WrapPanel>
                     <TextBlock Style="{StaticResource BlockLabel}" Text="🅦 Word paragraphs"/>
@@ -390,13 +391,15 @@
                             ToolTip="Re-read the file — use after editing the .docx directly in Word"/>
                 </WrapPanel>
                 <!-- the fragment exactly as Word renders it -->
-                <Border Background="White" CornerRadius="4" Padding="8" Margin="2,5,2,0"
-                        HorizontalAlignment="Left" BorderBrush="#22000000" BorderThickness="1">
+                <Border Background="{DynamicResource PaperBackgroundBrush}" CornerRadius="4" Padding="8" Margin="2,5,2,0"
+                        HorizontalAlignment="Left"
+                        BorderBrush="{DynamicResource PaperBorderBrush}" BorderThickness="1">
                     <StackPanel>
                         <Image Source="{Binding PreviewImage, Converter={StaticResource BytesToImage}}"
                                MaxWidth="440" Stretch="Uniform" StretchDirection="DownOnly"
                                HorizontalAlignment="Left" SnapsToDevicePixels="True"/>
-                        <TextBlock Foreground="#888" FontStyle="Italic" FontSize="12" TextWrapping="Wrap"
+                        <TextBlock Foreground="{DynamicResource PaperMutedForegroundBrush}"
+                                   FontStyle="Italic" FontSize="12" TextWrapping="Wrap"
                                    MaxWidth="420" HorizontalAlignment="Left"
                                    Text="empty — click “Edit in Word” to write formatted paragraphs (use {expressions} for data)">
                             <TextBlock.Style>
@@ -411,7 +414,8 @@
                             </TextBlock.Style>
                         </TextBlock>
                         <!-- content exists but Word has not rendered a preview yet -->
-                        <TextBlock Foreground="#888" FontStyle="Italic" FontSize="12" TextWrapping="Wrap"
+                        <TextBlock Foreground="{DynamicResource PaperMutedForegroundBrush}"
+                                   FontStyle="Italic" FontSize="12" TextWrapping="Wrap"
                                    MaxWidth="420" HorizontalAlignment="Left"
                                    Text="{Binding PlainText}">
                             <TextBlock.Style>
@@ -436,8 +440,8 @@
     </DataTemplate>
 
     <DataTemplate DataType="{x:Type b:TableBlock}">
-        <controls:BlockChrome BlockBrush="{StaticResource DocumentBrush}"
-                              BlockBorderBrush="{StaticResource DocumentBorderBrush}">
+        <controls:BlockChrome BlockBrush="{DynamicResource BlockDocumentBrush}"
+                              BlockBorderBrush="{DynamicResource BlockDocumentBorderBrush}">
             <StackPanel>
                 <WrapPanel>
                     <TextBlock Style="{StaticResource BlockLabel}" Text="▦ add table from"/>
@@ -456,8 +460,8 @@
     </DataTemplate>
 
     <DataTemplate DataType="{x:Type b:PageBreakBlock}">
-        <controls:BlockChrome BlockBrush="{StaticResource DocumentBrush}"
-                              BlockBorderBrush="{StaticResource DocumentBorderBrush}">
+        <controls:BlockChrome BlockBrush="{DynamicResource BlockDocumentBrush}"
+                              BlockBorderBrush="{DynamicResource BlockDocumentBorderBrush}">
             <TextBlock Style="{StaticResource BlockLabel}" Text="⤓ page break — — — — — — — —"/>
         </controls:BlockChrome>
     </DataTemplate>
