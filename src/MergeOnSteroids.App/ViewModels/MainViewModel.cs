@@ -890,9 +890,11 @@ public sealed class MainViewModel : INotifyPropertyChanged
             new("Document", "new document", "Starts a Word document; it is saved when the block ends. " +
                 "Put it inside a loop to get one document per record.",
                 document, () => new NewDocumentBlock()),
-            new("Document", "add paragraph", "Adds a paragraph. Use {expressions} to insert data.",
-                document, () => new ParagraphBlock { TextTemplate = "Text with {placeholders}" }),
-            new("Document", "Word paragraphs (rich)", "Formatted paragraphs authored directly in Word — " +
+            // 'add paragraph' is deliberately not offered any more: writing a paragraph
+            // here meant naming a Word style and hoping, when the block below lets you
+            // author the real thing in Word. ParagraphBlock still exists, so programs
+            // written before this keep loading and running unchanged.
+            new("Document", "Word paragraphs", "Paragraphs authored directly in Word — " +
                 "styles, colors, bullets, everything. {expressions} in the text are substituted at run time.",
                 document, () => new WordFragmentBlock()),
             new("Document", "add table", "Adds a table filled from a data source.",

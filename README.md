@@ -56,8 +56,8 @@ Programs are JSON files (`*.mos.json`) — friendly to source control.
 | Folders (purple) | make folder | Creates a folder and saves everything produced inside the block there. Nests: put it in a loop for one folder per record, and a `/` in the name makes another level (`{c.City}/{c.Company}`). |
 | | zip folder | The same, except the folder is zipped to `<name>.zip` beside itself when the block ends, and removed unless you tick *keep the folder too*. Everything nests inside it — loops, `make folder`, documents — so one archive can hold a whole tree. |
 | Document (blue) | new document | Starts a Word document, saved when the block finishes. Place inside a loop for one document per record. Supports an optional `.dotx` template. |
-| | add paragraph | Styled paragraph (Normal, Heading 1–3, Title, Subtitle, Quote, List Bullet + bold/italic). Text supports `{expressions}`. The block previews itself by having Word lay the paragraph out in the document's own template, so what you see is the template's real styles. |
-| | Word paragraphs (rich) | **Real Word content embedded in the block.** Click *Edit in Word* — the fragment's own `.docx` opens in Microsoft Word, where you write and format freely (styles, colors, bullets, anything). At run time the fragment is inserted with full fidelity and `{expressions}` in its text are substituted via Word find/replace, inheriting the surrounding formatting. Try `mos richsample` for a generated demo. |
+| | Word paragraphs | **Real Word content embedded in the block** — the way to add text. |
+| | ↳ how it works | Click *Edit in Word* — the fragment's own `.docx` opens in Microsoft Word, where you write and format freely (styles, colors, bullets, anything). At run time the fragment is inserted with full fidelity and `{expressions}` in its text are substituted via Word find/replace, inheriting the surrounding formatting. Try `mos richsample` for a generated demo. |
 | | add table | Table filled from a data source with computed columns: `Header: expression \| Header: expression` (empty = all columns). |
 | | page break | What it says. |
 
@@ -110,11 +110,13 @@ re-read it.
   stay on white "paper" in both themes, since they show what Word will print.
 - Word generation requires desktop Microsoft Word (any recent version; the writer uses
   late-bound OLE automation, no interop assemblies).
-- Paragraph previews are drawn by Word itself, in a hidden document built from the
-  template the enclosing `new document` block names — the same call the generator makes,
-  so a block cannot show you something a run would not produce. It keeps one hidden Word
-  instance open: roughly 1.5 s to start, then ~20 ms per paragraph, with repeats cached.
-  On by default; the toolbar's *Word previews* switches it off, and blocks then simply
-  show no preview rather than an imitation of one.
+- The old `add paragraph` block — text plus the *name* of a Word style — is no longer
+  offered in the palette: authoring the paragraph in Word says the same thing without
+  guessing. Programs that already contain one keep loading and running unchanged, and
+  such a block previews itself by having Word lay the paragraph out in a hidden document
+  built from the enclosing `new document` block's template. That is the same call the
+  generator makes, so the block cannot show you something a run would not produce. One
+  hidden Word instance serves it: ~1.5 s to start, then ~20 ms per paragraph, repeats
+  cached. On by default; the toolbar's *Word previews* switches it off.
 - Database query interpolation inlines values into the SQL text — only use it with trusted
   data (parameterized queries are on the roadmap).
