@@ -56,6 +56,10 @@
                     <CheckBox IsChecked="{Binding ShowWordWindow}" Content="show Word while generating"
                               VerticalAlignment="Center" Margin="8,0"/>
                     <Separator Margin="6,0" Width="1" Background="{DynamicResource SeparatorBrush}" Height="22"/>
+                    <CheckBox IsChecked="{Binding WordPreviewsEnabled}" Content="🅦 Word previews"
+                              VerticalAlignment="Center" Margin="8,0"
+                              ToolTip="Draw paragraph previews with Word itself, using the styles of the document's template.&#10;Keeps a hidden Word instance open while it is on."/>
+                    <Separator Margin="6,0" Width="1" Background="{DynamicResource SeparatorBrush}" Height="22"/>
                     <Button Style="{StaticResource ToolButton}" Command="{Binding OpenOutputFolderCommand}"
                             Content="Open output folder"/>
                 </WrapPanel>

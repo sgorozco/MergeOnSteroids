@@ -310,12 +310,20 @@ public sealed class ParagraphBlock : Block
     private string _style = ParagraphStyles.Normal;
     private bool _bold;
     private bool _italic;
+    private byte[]? _previewImage;
 
     /// <summary>Paragraph text; supports {expression} interpolation.</summary>
     public string TextTemplate { get => _textTemplate; set => Set(ref _textTemplate, value); }
     public string Style { get => _style; set => Set(ref _style, value); }
     public bool Bold { get => _bold; set => Set(ref _bold, value); }
     public bool Italic { get => _italic; set => Set(ref _italic, value); }
+
+    /// <summary>
+    /// Word's own rendering of this paragraph, when the editor is set to draw
+    /// previews through Word. Design-time only — re-rendered, never saved.
+    /// </summary>
+    [JsonIgnore]
+    public byte[]? PreviewImage { get => _previewImage; set => Set(ref _previewImage, value); }
 
     [JsonIgnore] public override string DisplayName => "add paragraph";
 }

@@ -14,4 +14,14 @@ public partial class App : Application
         ThemeManager.Initialize();
         InputFocus.Track();
     }
+
+    /// <summary>
+    /// Last chance to close the hidden Word instance the paragraph previews use —
+    /// it is a separate process, and nothing else would ever shut it down.
+    /// </summary>
+    protected override void OnExit(ExitEventArgs e)
+    {
+        ViewModels.MainViewModel.Current?.Shutdown();
+        base.OnExit(e);
+    }
 }

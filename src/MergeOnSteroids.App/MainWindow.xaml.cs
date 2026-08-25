@@ -73,6 +73,7 @@ public partial class MainWindow : Window
     private void Window_Closing(object sender, CancelEventArgs e)
     {
         if (!_vm.ConfirmDiscard()) e.Cancel = true;
+        else _vm.Shutdown();   // closes the hidden Word instance previews were using
     }
 
     // ------------------------------------------------------------- run panel

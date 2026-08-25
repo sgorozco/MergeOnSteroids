@@ -110,5 +110,10 @@ re-read it.
   stay on white "paper" in both themes, since they show what Word will print.
 - Word generation requires desktop Microsoft Word (any recent version; the writer uses
   late-bound OLE automation, no interop assemblies).
+- *Word previews* (toolbar) draws each `add paragraph` block's preview by laying the
+  paragraph out in a hidden Word document built from that document block's template, so
+  the block shows the template's real styles instead of an approximation. It keeps one
+  hidden Word instance open while it is on: roughly 1.5 s to start, then ~20 ms per
+  paragraph, and repeats are cached. Off by default.
 - Database query interpolation inlines values into the SQL text — only use it with trusted
   data (parameterized queries are on the roadmap).

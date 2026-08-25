@@ -11,6 +11,7 @@ using MergeOnSteroids.Core;
 using MergeOnSteroids.Core.Blocks;
 using MergeOnSteroids.Core.Data;
 using MergeOnSteroids.Core.Fragments;
+using MergeOnSteroids.Core.Interop;
 using MergeOnSteroids.Core.Runtime;
 using MergeOnSteroids.Core.Samples;
 using Microsoft.Win32;
@@ -33,6 +34,12 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private readonly DispatcherTimer _schemaTimer;
     private readonly List<FileSourceBlockBase> _schemaQueue = [];
     private readonly HashSet<SourceBlockBase> _schemaReading = [];
+
+    // Paragraph previews drawn by Word, when switched on.
+    private readonly DispatcherTimer _previewTimer;
+    private readonly List<ParagraphBlock> _previewQueue = [];
+    private WordPreviewService? _wordPreviews;
+    private bool _wordPreviewsEnabled;
 
     private ProgramModel _program = new();
     private string? _currentFilePath;
@@ -79,6 +86,13 @@ public sealed class MainViewModel : INotifyPropertyChanged
             Interval = TimeSpan.FromMilliseconds(700)
         };
         _schemaTimer.Tick += (_, _) => { _schemaTimer.Stop(); ReadQueuedSchemas(); };
+
+        _previewTimer = new DispatcherTimer(DispatcherPriority.Background, _dispatcher)
+        {
+            Interval = TimeSpan.FromMilliseconds(500)
+        };
+        _previewTimer.Tick += (_, _) => { _previewTimer.Stop(); RenderQueuedPreviews(); };
+        _wordPreviewsEnabled = UserSettings.Load().WordPreviews;
 
         LoadProgram(new ProgramModel(), null);
     }
@@ -259,6 +273,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
         RefreshSources();
         HydrateFragments();
         foreach (var source in Program.AllBlocks().OfType<FileSourceBlockBase>()) _ = ReadSchemaAsync(source);
+        _wordPreviews?.Reset();
+        QueueAllPreviews();
         IsDirty = false;   // hydration touches blocks; that is not a user edit
     }
 
@@ -320,6 +336,15 @@ public sealed class MainViewModel : INotifyPropertyChanged
             nameof(FileSourceBlockBase.FilePath) or nameof(FileSourceBlockBase.HeaderRow) or
             nameof(ExcelSourceBlock.SheetName))
             QueueSchemaRead(source);
+
+        if (sender is ParagraphBlock paragraph && e.PropertyName is
+            nameof(ParagraphBlock.TextTemplate) or nameof(ParagraphBlock.Style) or
+            nameof(ParagraphBlock.Bold) or nameof(ParagraphBlock.Italic))
+            QueuePreview(paragraph);
+
+        // a document's template decides how every paragraph inside it looks
+        if (sender is NewDocumentBlock && e.PropertyName == nameof(NewDocumentBlock.TemplatePath))
+            QueueAllPreviews();
     }
 
     /// <summary>
@@ -481,6 +506,104 @@ public sealed class MainViewModel : INotifyPropertyChanged
                 Log($"warning: could not read fragment '{block.FragmentFile}': {ex.Message}");
             }
         }
+    }
+
+    // ------------------------------------------------- Word paragraph previews
+
+    /// <summary>
+    /// Draw paragraph previews by asking Word to lay them out, instead of
+    /// approximating Word's styles in WPF. Costs a hidden Word instance.
+    /// </summary>
+    public bool WordPreviewsEnabled
+    {
+        get => _wordPreviewsEnabled;
+        set
+        {
+            if (_wordPreviewsEnabled == value) return;
+            _wordPreviewsEnabled = value;
+            OnPropertyChanged();
+            UserSettings.Update(s => s with { WordPreviews = value });
+
+            if (value)
+            {
+                Log("Word previews on — paragraphs are drawn by Word, using the template's own styles.");
+                QueueAllPreviews();
+            }
+            else
+            {
+                StopWordPreviews();
+                Log("Word previews off.");
+            }
+        }
+    }
+
+    private void QueuePreview(ParagraphBlock block)
+    {
+        if (!WordPreviewsEnabled) return;
+        if (!_previewQueue.Contains(block)) _previewQueue.Add(block);
+        _previewTimer.Stop();
+        _previewTimer.Start();
+    }
+
+    private void QueueAllPreviews()
+    {
+        foreach (var paragraph in Program.AllBlocks().OfType<ParagraphBlock>())
+            QueuePreview(paragraph);
+    }
+
+    private void RenderQueuedPreviews()
+    {
+        var pending = _previewQueue.ToList();
+        _previewQueue.Clear();
+        if (!WordPreviewsEnabled || pending.Count == 0) return;
+
+        _wordPreviews ??= new WordPreviewService(_dispatcher, Log);
+        foreach (var block in pending)
+            _wordPreviews.Request(block, PreviewRequest(block),
+                (b, png) => b.PreviewImage = png.Length > 0 ? png : null);
+    }
+
+    /// <summary>
+    /// What this paragraph should look like — including the template of the
+    /// document it sits in, so the preview shows that template's real styles.
+    /// </summary>
+    private ParagraphPreviewRequest PreviewRequest(ParagraphBlock block) =>
+        new(EnclosingTemplatePath(block), block.TextTemplate, block.Style, block.Bold, block.Italic);
+
+    /// <summary>
+    /// The .dotx/.docx of the nearest enclosing 'new document' block, if it names one
+    /// that exists. A template path built from {expressions} cannot be resolved with
+    /// no record in scope, so those fall back to Word's blank document.
+    /// </summary>
+    private string? EnclosingTemplatePath(Block block)
+    {
+        for (var owner = block.ParentCollection?.Owner; owner is not null; owner = owner.ParentCollection?.Owner)
+        {
+            if (owner is not NewDocumentBlock document) continue;
+            var template = document.TemplatePath;
+            if (string.IsNullOrWhiteSpace(template) || template.Contains('{')) return null;
+
+            var path = Path.GetFullPath(Path.Combine(RunBaseFolder, template.Trim()));
+            return File.Exists(path) ? path : null;
+        }
+        return null;
+    }
+
+    private void StopWordPreviews()
+    {
+        _previewQueue.Clear();
+        _previewTimer.Stop();
+        _wordPreviews?.Dispose();
+        _wordPreviews = null;
+        foreach (var paragraph in Program.AllBlocks().OfType<ParagraphBlock>())
+            paragraph.PreviewImage = null;
+    }
+
+    /// <summary>Closes the hidden Word instance when the editor shuts down.</summary>
+    public void Shutdown()
+    {
+        _wordPreviews?.Dispose();
+        _wordPreviews = null;
     }
 
     // --------------------------------------------------- data source columns

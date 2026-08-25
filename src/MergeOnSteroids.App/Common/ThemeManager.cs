@@ -1,6 +1,4 @@
-using System.IO;
 using System.Runtime.InteropServices;
-using System.Text.Json;
 using System.Windows;
 using System.Windows.Interop;
 using Microsoft.Win32;
@@ -89,40 +87,11 @@ public static class ThemeManager
 
     // ----------------------------------------------------------- persistence
 
-    private sealed record Settings(string Theme);
+    private static AppTheme? LoadSaved() =>
+        Enum.TryParse<AppTheme>(UserSettings.Load().Theme, ignoreCase: true, out var theme) ? theme : null;
 
-    private static string SettingsPath => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-        "MergeOnSteroids", "settings.json");
-
-    private static AppTheme? LoadSaved()
-    {
-        try
-        {
-            if (!File.Exists(SettingsPath)) return null;
-            var settings = JsonSerializer.Deserialize<Settings>(File.ReadAllText(SettingsPath));
-            return Enum.TryParse<AppTheme>(settings?.Theme, ignoreCase: true, out var theme) ? theme : null;
-        }
-        catch (Exception)
-        {
-            return null; // unreadable settings are never worth failing startup over
-        }
-    }
-
-    private static void Save(AppTheme theme)
-    {
-        try
-        {
-            Directory.CreateDirectory(Path.GetDirectoryName(SettingsPath)!);
-            File.WriteAllText(SettingsPath,
-                JsonSerializer.Serialize(new Settings(theme.ToString()),
-                    new JsonSerializerOptions { WriteIndented = true }));
-        }
-        catch (Exception)
-        {
-            // remembering the theme is a nicety, not worth an error dialog
-        }
-    }
+    private static void Save(AppTheme theme) =>
+        UserSettings.Update(s => s with { Theme = theme.ToString() });
 
     /// <summary>What Windows' own "app mode" setting is, used the very first time we run.</summary>
     private static AppTheme SystemTheme()

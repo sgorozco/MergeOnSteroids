@@ -9,14 +9,6 @@ namespace MergeOnSteroids.Core.Runtime;
 public sealed class WordComWriter : IDocumentWriter
 {
     // Word constants (WdBuiltinStyle etc.) — numeric so they survive late binding
-    private const int WdStyleNormal = -1;
-    private const int WdStyleHeading1 = -2;
-    private const int WdStyleHeading2 = -3;
-    private const int WdStyleHeading3 = -4;
-    private const int WdStyleTitle = -63;
-    private const int WdStyleSubtitle = -75;
-    private const int WdStyleQuote = -181;
-    private const int WdStyleListBullet = -12;
     private const int WdPageBreak = 7;
     private const int WdLineStyleSingle = 1;
     private const int WdFormatXMLDocument = 12; // .docx
@@ -69,7 +61,7 @@ public sealed class WordComWriter : IDocumentWriter
         range.Text = text;
         try
         {
-            range.Style = StyleId(style);
+            range.Style = Interop.WordStyleIds.Of(style);
         }
         catch (COMException)
         {
@@ -182,7 +174,7 @@ public sealed class WordComWriter : IDocumentWriter
         dynamic table = doc.Tables.Add(range, rowCount, colCount);
         table.Borders.InsideLineStyle = WdLineStyleSingle;
         table.Borders.OutsideLineStyle = WdLineStyleSingle;
-        table.Range.Style = WdStyleNormal;
+        table.Range.Style = Interop.WordStyleIds.Normal;
 
         var r = 1;
         if (headerRow)
@@ -249,17 +241,6 @@ public sealed class WordComWriter : IDocumentWriter
 
     public void Dispose() => End();
 
-    private static int StyleId(string style) => style switch
-    {
-        "Heading 1" => WdStyleHeading1,
-        "Heading 2" => WdStyleHeading2,
-        "Heading 3" => WdStyleHeading3,
-        "Title" => WdStyleTitle,
-        "Subtitle" => WdStyleSubtitle,
-        "Quote" => WdStyleQuote,
-        "List Bullet" => WdStyleListBullet,
-        _ => WdStyleNormal
-    };
 
     private dynamic RequireApp() =>
         _app ?? throw new InvalidOperationException("Word writer not started.");

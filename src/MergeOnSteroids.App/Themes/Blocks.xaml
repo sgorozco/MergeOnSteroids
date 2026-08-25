@@ -555,27 +555,44 @@
                          Text="{Binding TextTemplate, UpdateSourceTrigger=PropertyChanged}"
                          Margin="2,3,2,0"
                          ToolTip="Paragraph text. {expressions} insert data, e.g. Dear {c.Contact},"/>
-                <!-- live preview rendered the way Word will style it -->
+                <!-- live preview: Word's own rendering when it is switched on, our
+                     approximation of the styles otherwise -->
                 <Border Background="{DynamicResource PaperBackgroundBrush}" CornerRadius="4" Padding="10,5" Margin="2,4,2,0"
                         MaxWidth="460" HorizontalAlignment="Left"
                         BorderBrush="{DynamicResource PaperBorderBrush}" BorderThickness="1">
-                    <TextBlock Text="{Binding TextTemplate}" TextWrapping="Wrap"
-                               Foreground="{DynamicResource PaperForegroundBrush}"
-                               FontFamily="Calibri"
-                               FontSize="{Binding Style, Converter={StaticResource StyleFontSize}}">
-                        <TextBlock.FontWeight>
-                            <MultiBinding Converter="{StaticResource StyleWeight}">
-                                <Binding Path="Style"/>
-                                <Binding Path="Bold"/>
-                            </MultiBinding>
-                        </TextBlock.FontWeight>
-                        <TextBlock.FontStyle>
-                            <MultiBinding Converter="{StaticResource StyleItalic}">
-                                <Binding Path="Style"/>
-                                <Binding Path="Italic"/>
-                            </MultiBinding>
-                        </TextBlock.FontStyle>
-                    </TextBlock>
+                    <Grid>
+                        <Image Source="{Binding PreviewImage, Converter={StaticResource BytesToImage}}"
+                               MaxWidth="440" Stretch="Uniform" StretchDirection="DownOnly"
+                               HorizontalAlignment="Left" SnapsToDevicePixels="True"/>
+                        <TextBlock Text="{Binding TextTemplate}" TextWrapping="Wrap"
+                                   Foreground="{DynamicResource PaperForegroundBrush}"
+                                   FontFamily="Calibri"
+                                   FontSize="{Binding Style, Converter={StaticResource StyleFontSize}}">
+                            <TextBlock.FontWeight>
+                                <MultiBinding Converter="{StaticResource StyleWeight}">
+                                    <Binding Path="Style"/>
+                                    <Binding Path="Bold"/>
+                                </MultiBinding>
+                            </TextBlock.FontWeight>
+                            <TextBlock.FontStyle>
+                                <MultiBinding Converter="{StaticResource StyleItalic}">
+                                    <Binding Path="Style"/>
+                                    <Binding Path="Italic"/>
+                                </MultiBinding>
+                            </TextBlock.FontStyle>
+                            <TextBlock.Style>
+                                <!-- stands aside as soon as Word has drawn this paragraph -->
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding PreviewImage}" Value="{x:Null}">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </Grid>
                 </Border>
             </StackPanel>
         </controls:BlockChrome>
