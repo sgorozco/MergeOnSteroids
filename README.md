@@ -118,5 +118,8 @@ re-read it.
   generator makes, so the block cannot show you something a run would not produce. One
   hidden Word instance serves it: ~1.5 s to start, then ~20 ms per paragraph, repeats
   cached. On by default; the toolbar's *Word previews* switches it off.
+- Previews are drawn at Word's own size: the picture carries the DPI Word rendered it
+  at, and the block shows it unscaled, so a paragraph on the canvas is the size it is in
+  the document at 100% zoom.
 - Database query interpolation inlines values into the SQL text — only use it with trusted
   data (parameterized queries are on the roadmap).

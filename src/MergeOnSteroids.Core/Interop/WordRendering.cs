@@ -17,7 +17,13 @@ internal static class WordRendering
     /// into a small bitmap rounds every glyph position to a whole pixel, which
     /// makes the text look condensed and blotchy; rendering big first avoids that.
     /// </summary>
-    public static byte[] EmfToPng(byte[] emfBytes, double displayDpi = 150, int maxDisplayWidth = 1000)
+    /// <remarks>
+    /// The PNG is stamped with <paramref name="displayDpi"/>, so a viewer that honours
+    /// it (WPF does) draws the paragraph at the size Word shows at 100% zoom. The width
+    /// cap is only a guard against absurd page setups — a normal page must not hit it,
+    /// or the preview would come out smaller than the document.
+    /// </remarks>
+    public static byte[] EmfToPng(byte[] emfBytes, double displayDpi = 150, int maxDisplayWidth = 2000)
     {
         using var input = new MemoryStream(emfBytes);
         using var metafile = new Metafile(input);

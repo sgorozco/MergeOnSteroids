@@ -40,6 +40,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private readonly List<ParagraphBlock> _previewQueue = [];
     private WordService? _word;
     private bool _wordPreviewsEnabled;
+    private bool _editingFragment;
 
     private ProgramModel _program = new();
     private string? _currentFilePath;
@@ -69,10 +70,10 @@ public sealed class MainViewModel : INotifyPropertyChanged
         ClearLogCommand = new RelayCommand(() => { _log.Clear(); OnPropertyChanged(nameof(LogText)); });
         EditFragmentCommand = new ParamRelayCommand(
             p => _ = EditFragmentAsync(p as WordFragmentBlock),
-            p => !IsRunning && p is WordFragmentBlock);
+            p => !IsRunning && !_editingFragment && p is WordFragmentBlock);
         RefreshFragmentCommand = new ParamRelayCommand(
             p => _ = RefreshFragmentAsync(p as WordFragmentBlock),
-            p => !IsRunning && p is WordFragmentBlock { FragmentFile.Length: > 0 });
+            p => !IsRunning && !_editingFragment && p is WordFragmentBlock { FragmentFile.Length: > 0 });
         ToggleThemeCommand = new RelayCommand(ThemeManager.Toggle);
         ReadSchemaCommand = new ParamRelayCommand(
             p => _ = ReadSchemaAsync(p as SourceBlockBase),
@@ -399,6 +400,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
         var legacyXml = string.IsNullOrWhiteSpace(block.LegacyFragmentXml) ? null : block.LegacyFragmentXml;
         var word = Word();
+        _editingFragment = true;
 
         WordFragmentEditSession session;
         try
@@ -423,8 +425,10 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
         try
         {
-            var dialog = new Views.WordEditDialog { Owner = Application.Current.MainWindow };
-            if (dialog.ShowDialog() == true)
+            // No Owner, and shown modeless: see WordEditDialog for why.
+            var dialog = new Views.WordEditDialog();
+            dialog.Show();
+            if (await dialog.Result)
             {
                 var capture = await word.InvokeAsync(_ => session.SaveAs(fragmentPath));
                 ApplyCapture(block, fragmentPath, capture, baseFolder);
@@ -440,6 +444,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         {
             try { await word.InvokeAsync<object?>(_ => { session.Dispose(); return null; }); }
             catch (Exception) { /* Word may already be gone */ }
+            _editingFragment = false;
         }
     }
 

@@ -554,7 +554,7 @@
                          ToolTip="Paragraph text. {expressions} insert data, e.g. Dear {c.Contact},"/>
                 <!-- the paragraph as Word lays it out, with the template's own styles -->
                 <Border Background="{DynamicResource PaperBackgroundBrush}" CornerRadius="4" Padding="10,5" Margin="2,4,2,0"
-                        MaxWidth="460" HorizontalAlignment="Left"
+                        HorizontalAlignment="Left"
                         BorderBrush="{DynamicResource PaperBorderBrush}" BorderThickness="1">
                     <Border.Style>
                         <!-- nothing to show until Word has drawn it -->
@@ -567,8 +567,7 @@
                         </Style>
                     </Border.Style>
                     <Image Source="{Binding PreviewImage, Converter={StaticResource BytesToImage}}"
-                           MaxWidth="440" Stretch="Uniform" StretchDirection="DownOnly"
-                           HorizontalAlignment="Left" SnapsToDevicePixels="True"/>
+                           Stretch="None" HorizontalAlignment="Left" SnapsToDevicePixels="True"/>
                 </Border>
             </StackPanel>
         </controls:BlockChrome>
@@ -598,8 +597,7 @@
                         BorderBrush="{DynamicResource PaperBorderBrush}" BorderThickness="1">
                     <StackPanel>
                         <Image Source="{Binding PreviewImage, Converter={StaticResource BytesToImage}}"
-                               MaxWidth="440" Stretch="Uniform" StretchDirection="DownOnly"
-                               HorizontalAlignment="Left" SnapsToDevicePixels="True"/>
+                               Stretch="None" HorizontalAlignment="Left" SnapsToDevicePixels="True"/>
                         <TextBlock Foreground="{DynamicResource PaperMutedForegroundBrush}"
                                    FontStyle="Italic" FontSize="12" TextWrapping="Wrap"
                                    MaxWidth="420" HorizontalAlignment="Left"
