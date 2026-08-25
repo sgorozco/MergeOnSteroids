@@ -16,16 +16,18 @@ public sealed record ParagraphPreviewRequest(
 /// the same template the run would use, so a block shows that template's real
 /// styles — font, size, colour, spacing, bullets — rather than an approximation.
 ///
-/// One hidden Word instance serves every preview and stays open between them, since
-/// starting Word costs far more than laying out a paragraph. Not thread-safe: drive
-/// it from a single STA thread.
+/// The documents belong to the shared <see cref="WordApplication"/> and stay open
+/// between renders, since loading a template costs far more than laying out a
+/// paragraph. Not thread-safe: drive it from a single STA thread.
 /// </summary>
 public sealed class WordParagraphPreview : IDisposable
 {
     private const int WdDoNotSaveChanges = 0;
 
     private readonly Dictionary<string, dynamic> _scratchDocuments = new(StringComparer.OrdinalIgnoreCase);
-    private dynamic? _app;
+    private readonly WordApplication _word;
+
+    public WordParagraphPreview(WordApplication word) => _word = word;
 
     /// <summary>Word's rendering of one paragraph as PNG bytes; empty when there is nothing to draw.</summary>
     public byte[] Render(ParagraphPreviewRequest request)
@@ -99,28 +101,15 @@ public sealed class WordParagraphPreview : IDisposable
         var key = templatePath ?? "";
         if (_scratchDocuments.TryGetValue(key, out var existing)) return existing;
 
-        var app = RequireApp();
+        // Visible:false keeps these scratch pads out of sight even while Word is
+        // showing a fragment the user is editing.
+        dynamic documents = _word.Instance.Documents;
         dynamic document = string.IsNullOrWhiteSpace(templatePath)
-            ? app.Documents.Add()
-            : app.Documents.Add(templatePath);
+            ? documents.Add(Type.Missing, Type.Missing, Type.Missing, false)
+            : documents.Add(templatePath, Type.Missing, Type.Missing, false);
 
         _scratchDocuments[key] = document;
         return document;
-    }
-
-    private dynamic RequireApp()
-    {
-        if (_app is not null) return _app;
-
-        var wordType = Type.GetTypeFromProgID("Word.Application")
-            ?? throw new InvalidOperationException(
-                "Microsoft Word is not installed (Word.Application COM class not found).");
-
-        _app = Activator.CreateInstance(wordType)
-            ?? throw new InvalidOperationException("Could not start Microsoft Word.");
-        _app!.Visible = false;
-        _app!.DisplayAlerts = 0;
-        return _app;
     }
 
     public void Dispose()
@@ -131,13 +120,7 @@ public sealed class WordParagraphPreview : IDisposable
             Release(document);
         }
         _scratchDocuments.Clear();
-
-        if (_app is null) return;
-        try { _app.Quit(WdDoNotSaveChanges); } catch (Exception) { /* best effort */ }
-        Release(_app);
-        _app = null;
-        GC.Collect();
-        GC.WaitForPendingFinalizers();
+        // Word itself belongs to whoever owns the WordApplication.
     }
 
     private static void Release(object? o)

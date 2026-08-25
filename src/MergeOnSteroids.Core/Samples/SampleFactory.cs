@@ -144,7 +144,9 @@ public static class SampleFactory
 
     private static FragmentCapture AuthorRichFragment(string docxPath)
     {
-        using var session = WordFragmentEditSession.Start(null, visible: false);
+        // the sample generator is a one-shot, so it owns its own Word for the duration
+        using var word = new WordApplication();
+        using var session = WordFragmentEditSession.Start(word, null, visible: false);
         dynamic doc = session.Document;
 
         AddStyledParagraph(doc, "Estado de cuenta — {c.Company}", -3 /* Heading 2 */);

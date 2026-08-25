@@ -38,7 +38,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
     // Paragraph previews drawn by Word, when switched on.
     private readonly DispatcherTimer _previewTimer;
     private readonly List<ParagraphBlock> _previewQueue = [];
-    private WordPreviewService? _wordPreviews;
+    private WordService? _word;
     private bool _wordPreviewsEnabled;
 
     private ProgramModel _program = new();
@@ -68,10 +68,10 @@ public sealed class MainViewModel : INotifyPropertyChanged
         DeleteSelectedCommand = new RelayCommand(DeleteSelected, () => SelectedBlock is not null);
         ClearLogCommand = new RelayCommand(() => { _log.Clear(); OnPropertyChanged(nameof(LogText)); });
         EditFragmentCommand = new ParamRelayCommand(
-            p => EditFragment(p as WordFragmentBlock),
+            p => _ = EditFragmentAsync(p as WordFragmentBlock),
             p => !IsRunning && p is WordFragmentBlock);
         RefreshFragmentCommand = new ParamRelayCommand(
-            p => RefreshFragment(p as WordFragmentBlock),
+            p => _ = RefreshFragmentAsync(p as WordFragmentBlock),
             p => !IsRunning && p is WordFragmentBlock { FragmentFile.Length: > 0 });
         ToggleThemeCommand = new RelayCommand(ThemeManager.Toggle);
         ReadSchemaCommand = new ParamRelayCommand(
@@ -273,7 +273,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         RefreshSources();
         HydrateFragments();
         foreach (var source in Program.AllBlocks().OfType<FileSourceBlockBase>()) _ = ReadSchemaAsync(source);
-        _wordPreviews?.Reset();
+        _word?.Reset();
         QueueAllPreviews();
         IsDirty = false;   // hydration touches blocks; that is not a user edit
     }
@@ -379,7 +379,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
     /// real Word window, let the user edit it there, then save it back and refresh
     /// the block's Word-rendered preview.
     /// </summary>
-    private void EditFragment(WordFragmentBlock? block)
+    private async Task EditFragmentAsync(WordFragmentBlock? block)
     {
         if (block is null) return;
         if (CurrentFilePath is null)
@@ -397,14 +397,18 @@ public sealed class MainViewModel : INotifyPropertyChanged
             : block.FragmentFile;
         var fragmentPath = Path.GetFullPath(Path.Combine(baseFolder, relative));
 
-        Core.Interop.WordFragmentEditSession session;
+        var legacyXml = string.IsNullOrWhiteSpace(block.LegacyFragmentXml) ? null : block.LegacyFragmentXml;
+        var word = Word();
+
+        WordFragmentEditSession session;
         try
         {
-            System.Windows.Input.Mouse.OverrideCursor = System.Windows.Input.Cursors.Wait;
-            session = File.Exists(fragmentPath)
-                ? Core.Interop.WordFragmentEditSession.OpenFile(fragmentPath)
-                : Core.Interop.WordFragmentEditSession.Start(
-                    string.IsNullOrWhiteSpace(block.LegacyFragmentXml) ? null : block.LegacyFragmentXml);
+            // Every Word call happens on the Word thread, so the editor stays responsive
+            // even the first time, when Word itself has to start.
+            System.Windows.Input.Mouse.OverrideCursor = System.Windows.Input.Cursors.AppStarting;
+            session = await word.InvokeAsync(w => File.Exists(fragmentPath)
+                ? WordFragmentEditSession.OpenFile(w, fragmentPath)
+                : WordFragmentEditSession.Start(w, legacyXml));
         }
         catch (Exception ex)
         {
@@ -421,7 +425,10 @@ public sealed class MainViewModel : INotifyPropertyChanged
         {
             var dialog = new Views.WordEditDialog { Owner = Application.Current.MainWindow };
             if (dialog.ShowDialog() == true)
-                ApplyCapture(block, fragmentPath, session.SaveAs(fragmentPath), baseFolder);
+            {
+                var capture = await word.InvokeAsync(_ => session.SaveAs(fragmentPath));
+                ApplyCapture(block, fragmentPath, capture, baseFolder);
+            }
         }
         catch (Exception ex)
         {
@@ -431,7 +438,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
         }
         finally
         {
-            try { session.Dispose(); } catch { /* Word may already be gone */ }
+            try { await word.InvokeAsync<object?>(_ => { session.Dispose(); return null; }); }
+            catch (Exception) { /* Word may already be gone */ }
         }
     }
 
@@ -439,7 +447,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
     /// Re-reads a fragment file — use it after editing the .docx directly in Word
     /// (from Explorer, say), or after pointing the block at a different file.
     /// </summary>
-    private void RefreshFragment(WordFragmentBlock? block)
+    private async Task RefreshFragmentAsync(WordFragmentBlock? block)
     {
         if (block is null || string.IsNullOrWhiteSpace(block.FragmentFile)) return;
 
@@ -454,9 +462,13 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
         try
         {
-            System.Windows.Input.Mouse.OverrideCursor = System.Windows.Input.Cursors.Wait;
-            using var session = Core.Interop.WordFragmentEditSession.OpenFile(fragmentPath, visible: false);
-            ApplyCapture(block, fragmentPath, session.Capture(), baseFolder);
+            System.Windows.Input.Mouse.OverrideCursor = System.Windows.Input.Cursors.AppStarting;
+            var capture = await Word().InvokeAsync(w =>
+            {
+                using var session = WordFragmentEditSession.OpenFile(w, fragmentPath, visible: false);
+                return session.Capture();
+            });
+            ApplyCapture(block, fragmentPath, capture, baseFolder);
         }
         catch (Exception ex)
         {
@@ -557,9 +569,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
         _previewQueue.Clear();
         if (!WordPreviewsEnabled || pending.Count == 0) return;
 
-        _wordPreviews ??= new WordPreviewService(_dispatcher, Log);
         foreach (var block in pending)
-            _wordPreviews.Request(block, PreviewRequest(block),
+            Word().Request(block, PreviewRequest(block),
                 (b, png) => b.PreviewImage = png.Length > 0 ? png : null);
     }
 
@@ -589,21 +600,26 @@ public sealed class MainViewModel : INotifyPropertyChanged
         return null;
     }
 
+    /// <summary>
+    /// The editor's Word thread, started the first time something actually needs Word —
+    /// a preview to draw, or a fragment to open.
+    /// </summary>
+    private WordService Word() => _word ??= new WordService(_dispatcher, Log);
+
     private void StopWordPreviews()
     {
         _previewQueue.Clear();
         _previewTimer.Stop();
-        _wordPreviews?.Dispose();
-        _wordPreviews = null;
         foreach (var paragraph in Program.AllBlocks().OfType<ParagraphBlock>())
             paragraph.PreviewImage = null;
+        // Word itself stays: editing a fragment still needs it, and restarting it is slow.
     }
 
-    /// <summary>Closes the hidden Word instance when the editor shuts down.</summary>
+    /// <summary>Quits Word when the editor shuts down.</summary>
     public void Shutdown()
     {
-        _wordPreviews?.Dispose();
-        _wordPreviews = null;
+        _word?.Dispose();
+        _word = null;
     }
 
     // --------------------------------------------------- data source columns

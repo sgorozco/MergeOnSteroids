@@ -35,62 +35,55 @@ public static class WordFragmentText
 public sealed record FragmentCapture(string Xml, byte[] PreviewPng, string PlainText);
 
 /// <summary>
-/// A live Word window holding one fragment. Opens the fragment's own .docx (or a
-/// blank document for a new fragment) so the user edits the real file, then saves
-/// it back and captures a preview rendered by Word itself.
+/// One fragment open in Word. The document belongs to the shared
+/// <see cref="WordApplication"/>, so a session is cheap: disposing it closes the
+/// document and leaves Word running for the next one.
 /// </summary>
 public sealed class WordFragmentEditSession : IDisposable
 {
     private const int WdFormatXMLDocument = 12;
     private const int WdDoNotSaveChanges = 0;
 
-    private dynamic? _app;
+    private readonly WordApplication _word;
+    private readonly bool _visible;
     private dynamic? _doc;
 
-    private WordFragmentEditSession() { }
+    private WordFragmentEditSession(WordApplication word, bool visible)
+    {
+        _word = word;
+        _visible = visible;
+    }
 
     /// <summary>New fragment: a blank document, optionally seeded with Flat OPC content.</summary>
-    public static WordFragmentEditSession Start(string? seedFragmentXml, bool visible = true)
+    public static WordFragmentEditSession Start(WordApplication word, string? seedFragmentXml, bool visible = true)
     {
-        var session = new WordFragmentEditSession();
-        session.StartWord(visible);
-        session._doc = session._app!.Documents.Add();
+        var session = new WordFragmentEditSession(word, visible);
+        session._doc = word.Instance.Documents.Add(Type.Missing, Type.Missing, Type.Missing, visible);
         if (!string.IsNullOrWhiteSpace(seedFragmentXml))
         {
             dynamic range = session._doc!.Content;
             range.InsertXML(seedFragmentXml);
             Release(range);
         }
-        session.Activate(visible);
+        session.Reveal();
         return session;
     }
 
     /// <summary>Existing fragment: opens its .docx for editing in place.</summary>
-    public static WordFragmentEditSession OpenFile(string docxPath, bool visible = true)
+    public static WordFragmentEditSession OpenFile(WordApplication word, string docxPath, bool visible = true)
     {
-        var session = new WordFragmentEditSession();
-        session.StartWord(visible);
-        session._doc = session._app!.Documents.Open(docxPath, false, false, false);
-        session.Activate(visible);
+        var session = new WordFragmentEditSession(word, visible);
+        // positional: FileName, ConfirmConversions, ReadOnly, AddToRecentFiles, … Visible (12th)
+        session._doc = word.Instance.Documents.Open(docxPath, false, false, false,
+            Type.Missing, Type.Missing, Type.Missing, Type.Missing,
+            Type.Missing, Type.Missing, Type.Missing, visible);
+        session.Reveal();
         return session;
     }
 
-    private void StartWord(bool visible)
+    private void Reveal()
     {
-        var wordType = Type.GetTypeFromProgID("Word.Application")
-            ?? throw new InvalidOperationException(
-                "Microsoft Word is not installed (Word.Application COM class not found).");
-
-        _app = Activator.CreateInstance(wordType)
-            ?? throw new InvalidOperationException("Could not start Microsoft Word.");
-        _app!.DisplayAlerts = 0;
-        _app!.Visible = visible;
-    }
-
-    private void Activate(bool visible)
-    {
-        if (!visible) return;
-        try { _app!.Activate(); } catch { /* focus is best effort */ }
+        if (_visible) _word.Show();
     }
 
     /// <summary>Direct access for programmatic authoring (sample generation).</summary>
@@ -140,22 +133,21 @@ public sealed class WordFragmentEditSession : IDisposable
         }
     }
 
+    /// <summary>
+    /// Closes the fragment and puts Word away — but leaves it running. Word itself is
+    /// only quit when the editor exits, because quitting and restarting it is what made
+    /// every edit cost half a minute.
+    /// </summary>
     public void Dispose()
     {
-        if (_doc is not null)
-        {
-            try { _doc.Close(WdDoNotSaveChanges); } catch { /* user may have closed it already */ }
-            Release(_doc);
-            _doc = null;
-        }
-        if (_app is not null)
-        {
-            try { _app.Quit(WdDoNotSaveChanges); } catch { /* best effort */ }
-            Release(_app);
-            _app = null;
-            GC.Collect();
-            GC.WaitForPendingFinalizers();
-        }
+        if (_doc is null) return;
+
+        var doc = _doc;
+        _doc = null;
+        try { doc.Close(WdDoNotSaveChanges); } catch (Exception) { /* user may have closed it already */ }
+        Release(doc);        // while Word is still alive, so this is instant
+
+        if (_visible) _word.Hide();
     }
 
     private static void Release(object? o)
