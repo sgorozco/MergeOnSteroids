@@ -392,6 +392,7 @@ public sealed class Interpreter
 
         FragmentContent content;
         string plainText;
+        IReadOnlyList<Fragments.FragmentRepeatRow> repeatRows;
         if (!string.IsNullOrWhiteSpace(b.FragmentFile))
         {
             var path = _options.ResolvePath(b.FragmentFile);
@@ -400,20 +401,30 @@ public sealed class Interpreter
                     $"Fragment file not found: {path} (referenced by a 'Word paragraphs' block).");
             content = new FragmentContent(path, null);
             plainText = FragmentText(path);
+            repeatRows = Fragments.FragmentRepeats.Read(path);
         }
         else
         {
             content = new FragmentContent(null, b.LegacyFragmentXml);
             plainText = Interop.WordFragmentText.Extract(b.LegacyFragmentXml ?? "");
+            repeatRows = [];   // pre-sidecar fragments predate repeating rows
         }
+
+        var repeats = repeatRows.Select(BuildRepeat).Where(r => r is not null).ToList()!;
 
         // Evaluate each {placeholder} found in the fragment's text; the raw
         // placeholder (exactly as it appears in the document, smart quotes and
-        // all) becomes the literal find-text for substitution.
+        // all) becomes the literal find-text for substitution. Placeholders that
+        // only ever appear inside a repeated row are skipped here — they belong to
+        // a record, and were already resolved per clone.
+        var repeatedText = string.Concat(repeatRows.Select(r => r.RowText));
         var replacements = new List<KeyValuePair<string, string>>();
         foreach (var (expression, raw) in TemplateEngine.ExtractPlaceholders(plainText)
                      .DistinctBy(p => p.RawPlaceholder))
         {
+            if (repeatRows.Any(r => r.Marker == raw)) continue;                 // the marker itself
+            if (Occurrences(plainText, raw) <= Occurrences(repeatedText, raw)) continue;
+
             string value;
             try
             {
@@ -427,7 +438,62 @@ public sealed class Interpreter
             replacements.Add(new KeyValuePair<string, string>(raw, value));
         }
 
-        _writer.AddFragment(content, plainText, replacements);
+        _writer.AddFragment(content, plainText, replacements, repeats!);
+    }
+
+    /// <summary>
+    /// Works out what one repeated row becomes: its placeholders evaluated once per
+    /// record of the source it names, each set applied to one clone of the row.
+    /// </summary>
+    private FragmentRowRepeat? BuildRepeat(Fragments.FragmentRepeatRow row)
+    {
+        var source = _ctx.ResolveSource(row.SourceName.Trim());
+        if (source is null)
+        {
+            Warn($"'{row.Marker}' in a 'Word paragraphs' block: data source '{row.SourceName}' " +
+                 "is not defined at this point — the row was dropped.");
+            return new FragmentRowRepeat(row.Marker, row.CellTemplates, []);
+        }
+
+        var placeholders = TemplateEngine.ExtractPlaceholders(row.RowText)
+            .DistinctBy(p => p.RawPlaceholder)
+            .Where(p => p.RawPlaceholder != row.Marker)
+            .ToList();
+
+        var rows = new List<IReadOnlyList<KeyValuePair<string, string>>>(source.Rows.Count);
+        for (var i = 0; i < source.Rows.Count; i++)
+        {
+            _options.Cancellation.ThrowIfCancellationRequested();
+            using var scope = _ctx.PushRowScope(source, i);
+
+            var values = new List<KeyValuePair<string, string>>(placeholders.Count);
+            foreach (var (expression, raw) in placeholders)
+            {
+                string value;
+                try
+                {
+                    value = Values.ToDisplayString(_compiler.Compile(expression).Eval(_ctx));
+                }
+                catch (MosExpressionException ex)
+                {
+                    value = "{!" + ex.Message + "}";
+                    Warn($"In '{raw}' (row {i + 1} of '{row.SourceName}'): {ex.Message}");
+                }
+                values.Add(new KeyValuePair<string, string>(raw, value));
+            }
+            rows.Add(values);
+        }
+
+        _log($"Fragment table: {rows.Count} row(s) from '{row.SourceName}'.");
+        return new FragmentRowRepeat(row.Marker, row.CellTemplates, rows);
+    }
+
+    private static int Occurrences(string text, string value)
+    {
+        if (string.IsNullOrEmpty(value)) return 0;
+        int count = 0, at = 0;
+        while ((at = text.IndexOf(value, at, StringComparison.Ordinal)) >= 0) { count++; at += value.Length; }
+        return count;
     }
 
     /// <summary>Fragment text read straight from the .docx (no Word needed), cached per run.</summary>

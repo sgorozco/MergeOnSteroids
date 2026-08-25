@@ -53,13 +53,41 @@ public sealed class PreviewWriter : IDocumentWriter
     }
 
     public void AddFragment(FragmentContent fragment, string plainText,
-        IReadOnlyList<KeyValuePair<string, string>> replacements)
+        IReadOnlyList<KeyValuePair<string, string>> replacements,
+        IReadOnlyList<FragmentRowRepeat> repeats)
     {
         var d = RequireDoc();
         var text = plainText ?? "";
         foreach (var (find, replace) in replacements)
             text = text.Replace(find, replace);
-        d.AppendLine(text);
+
+        // A repeated row is a Word table row, and there is no table here: drop the row
+        // the marker sits in — every cell of it — and list what it produced instead.
+        var rowCells = repeats
+            .SelectMany(r => r.CellTemplates)
+            .SelectMany(cell => cell.Split('\n'))
+            .Select(line => line.Trim())
+            .Where(line => line.Length > 0)
+            .ToHashSet(StringComparer.Ordinal);
+
+        foreach (var line in text.Split('\n'))
+        {
+            if (rowCells.Contains(line.Trim())) continue;
+            d.AppendLine(line);
+        }
+
+        foreach (var repeat in repeats)
+        {
+            foreach (var values in repeat.Rows)
+            {
+                var cells = repeat.CellTemplates.Select(cell =>
+                {
+                    foreach (var (find, replace) in values) cell = cell.Replace(find, replace);
+                    return cell.Replace(repeat.Marker, "").Trim();
+                });
+                d.Append("| ").Append(string.Join(" | ", cells)).AppendLine(" |");
+            }
+        }
     }
 
     public void AddTable(IReadOnlyList<string> headers, IReadOnlyList<string[]> rows, bool headerRow)

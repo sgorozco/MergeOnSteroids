@@ -25,6 +25,16 @@ public sealed class RunOptions
 public sealed record FragmentContent(string? DocxPath, string? InlineXml);
 
 /// <summary>
+/// A row of a fragment's table to be repeated. <paramref name="Rows"/> holds one
+/// substitution set per record — the row is cloned that many times, each clone getting
+/// its own set — and <paramref name="Marker"/> is the {repeat …} text to strip afterwards.
+/// </summary>
+public sealed record FragmentRowRepeat(
+    string Marker,
+    IReadOnlyList<string> CellTemplates,
+    IReadOnlyList<IReadOnlyList<KeyValuePair<string, string>>> Rows);
+
+/// <summary>
 /// Target that receives document content produced by the interpreter.
 /// Implementations: Word COM automation, plain-text preview.
 /// </summary>
@@ -45,9 +55,12 @@ public interface IDocumentWriter : IDisposable
     /// Inserts a formatted Word fragment, then applies the given literal
     /// find→replace substitutions inside the inserted content only.
     /// <paramref name="plainText"/> is the fragment's text for non-Word writers.
+    /// <paramref name="repeats"/> are its table rows to clone, one clone per record,
+    /// which happens before the substitutions so a repeated row is filled per record.
     /// </summary>
     void AddFragment(FragmentContent fragment, string plainText,
-        IReadOnlyList<KeyValuePair<string, string>> replacements);
+        IReadOnlyList<KeyValuePair<string, string>> replacements,
+        IReadOnlyList<FragmentRowRepeat> repeats);
     void AddTable(IReadOnlyList<string> headers, IReadOnlyList<string[]> rows, bool headerRow);
     void PageBreak();
     /// <summary>Finish the current document. Returns the path it was saved to.</summary>

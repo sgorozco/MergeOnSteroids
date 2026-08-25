@@ -9,6 +9,7 @@ namespace MergeOnSteroids.Core.Runtime;
 public sealed class WordComWriter : IDocumentWriter
 {
     // Word constants (WdBuiltinStyle etc.) — numeric so they survive late binding
+    private const int WdCharacter = 1;
     private const int WdPageBreak = 7;
     private const int WdLineStyleSingle = 1;
     private const int WdFormatXMLDocument = 12; // .docx
@@ -74,7 +75,8 @@ public sealed class WordComWriter : IDocumentWriter
     }
 
     public void AddFragment(FragmentContent fragment, string plainText,
-        IReadOnlyList<KeyValuePair<string, string>> replacements)
+        IReadOnlyList<KeyValuePair<string, string>> replacements,
+        IReadOnlyList<FragmentRowRepeat> repeats)
     {
         var doc = RequireDoc();
         var fragmentXml = fragment.InlineXml ?? ReadFragmentXml(fragment.DocxPath);
@@ -86,6 +88,11 @@ public sealed class WordComWriter : IDocumentWriter
         insertAt.InsertXML(fragmentXml);
         ReleaseCom(insertAt);
 
+        // Repeated rows first: each clone gets its own record's values, so the
+        // whole-fragment pass below finds nothing left to substitute inside them.
+        foreach (var repeat in repeats)
+            ExpandRepeat(doc, start, repeat);
+
         foreach (var (find, replace) in replacements)
             ReplaceInRange(doc, start, find, replace);
 
@@ -95,6 +102,112 @@ public sealed class WordComWriter : IDocumentWriter
         dynamic after = doc.Bookmarks["\\endofdoc"].Range;
         after.InsertParagraphAfter();
         ReleaseCom(after);
+    }
+
+    /// <summary>
+    /// Fills a table with one row per record: the row carrying the {repeat …} marker is
+    /// the template, a row is added per record — Word gives an added row the reference
+    /// row's shading, borders and height — and each cell's content is copied over with
+    /// its character formatting before the record's values are substituted in. The
+    /// marker row is removed once its clones are in place.
+    /// </summary>
+    private static void ExpandRepeat(dynamic doc, int start, FragmentRowRepeat repeat)
+    {
+        var markerRow = FindMarkerRow(doc, start, repeat.Marker);
+        if (markerRow is null) return;   // marker is not inside a table: nothing to repeat
+
+        dynamic table = markerRow.Range.Tables[1];
+        int cellCount = markerRow.Cells.Count;
+
+        foreach (var values in repeat.Rows)
+        {
+            dynamic clone = table.Rows.Add(markerRow);      // inserted just above the marker row
+            for (var c = 1; c <= cellCount; c++)
+            {
+                dynamic source = markerRow.Cells.Item(c).Range;
+                source.MoveEnd(WdCharacter, -1);            // leave the end-of-cell mark behind
+                dynamic target = clone.Cells.Item(c).Range;
+                target.MoveEnd(WdCharacter, -1);
+                target.FormattedText = source.FormattedText;
+                ReleaseCom(source);
+                ReleaseCom(target);
+
+                dynamic cell = clone.Cells.Item(c);
+                foreach (var (find, replace) in values)
+                    ReplaceInCell(cell, find, replace);
+                ReplaceInCell(cell, repeat.Marker, "");
+                ReleaseCom(cell);
+            }
+            ReleaseCom(clone);
+        }
+
+        markerRow.Delete();
+        ReleaseCom(markerRow);
+        ReleaseCom(table);
+    }
+
+    /// <summary>The row of a table inside the just-inserted fragment that carries the marker.</summary>
+    private static dynamic? FindMarkerRow(dynamic doc, int start, string marker)
+    {
+        dynamic scope = doc.Range(start, doc.Content.End);
+        try
+        {
+            foreach (dynamic table in scope.Tables)
+            {
+                foreach (dynamic row in table.Rows)
+                {
+                    string text = row.Range.Text ?? "";
+                    if (text.Contains(marker, StringComparison.Ordinal)) return row;
+                    ReleaseCom(row);
+                }
+                ReleaseCom(table);
+            }
+            return null;
+        }
+        finally
+        {
+            ReleaseCom(scope);
+        }
+    }
+
+    /// <summary>
+    /// Literal find→replace confined to one table cell. Two Word quirks to respect:
+    /// Find happily runs past the end of the range it was started on, so every hit is
+    /// checked against the cell's own bounds; and it skips a match that fills the whole
+    /// search range, so the range must be the entire cell — end-of-cell mark included —
+    /// or a cell containing nothing but {Qty} never matches "{Qty}".
+    /// </summary>
+    private static void ReplaceInCell(dynamic cell, string find, string replace)
+    {
+        if (string.IsNullOrEmpty(find) || find.Length > 255) return;   // Word Find limit
+
+        for (var guard = 0; guard < 50; guard++)
+        {
+            dynamic bounds = cell.Range;
+            int cellStart = bounds.Start, cellEnd = bounds.End;
+            ReleaseCom(bounds);
+
+            dynamic search = cell.Range;
+            dynamic finder = search.Find;
+            finder.ClearFormatting();
+            finder.Forward = true;
+            finder.Wrap = 0;                        // wdFindStop
+            finder.MatchCase = true;
+            finder.MatchWildcards = false;
+            bool found = finder.Execute(find);
+            ReleaseCom(finder);
+
+            var inside = found && (int)search.Start >= cellStart && (int)search.End <= cellEnd;
+            if (!inside)
+            {
+                ReleaseCom(search);
+                return;
+            }
+
+            search.Text = replace;                  // no length limit, unlike Find's ReplaceWith
+            ReleaseCom(search);
+            if (replace.Contains(find, StringComparison.Ordinal)) return;   // would find itself forever
+        }
     }
 
     /// <summary>
