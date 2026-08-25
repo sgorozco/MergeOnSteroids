@@ -13,8 +13,11 @@ public sealed record UserSettings
     /// <summary>"Light" or "Dark"; null on the first run, when Windows decides.</summary>
     public string? Theme { get; init; }
 
-    /// <summary>Render paragraph previews through Word instead of approximating them.</summary>
-    public bool WordPreviews { get; init; }
+    /// <summary>
+    /// Draw paragraph previews with Word. Null means never chosen, and the editor
+    /// starts with them on — they are the only preview a paragraph block has.
+    /// </summary>
+    public bool? WordPreviews { get; init; }
 
     private static string FilePath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),

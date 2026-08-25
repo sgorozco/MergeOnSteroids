@@ -92,7 +92,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
             Interval = TimeSpan.FromMilliseconds(500)
         };
         _previewTimer.Tick += (_, _) => { _previewTimer.Stop(); RenderQueuedPreviews(); };
-        _wordPreviewsEnabled = UserSettings.Load().WordPreviews;
+        _wordPreviewsEnabled = UserSettings.Load().WordPreviews ?? true;
 
         LoadProgram(new ProgramModel(), null);
     }
